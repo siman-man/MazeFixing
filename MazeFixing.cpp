@@ -37,6 +37,7 @@ int g_width;
 int g_height;
 
 int g_maze[MAX_WIDTH][MAX_HEIGHT];
+int g_mazeOrigin[MAX_WIDTH][MAX_HEIGHT];
 int g_visitedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
 
@@ -52,6 +53,18 @@ string int2string(int number){
   ss << number;
   return ss.str();
 }
+
+typedef struct COORD {
+  int y;
+  int x;
+  int dist;
+
+  COORD(int y, int x, int dist = 0){
+    this->y = y;
+    this->x = x;
+    this->dist = dist;
+  }
+} coord;
 
 vector<string> g_query;
 
@@ -86,6 +99,8 @@ class MazeFixing{
           }
         }
       }
+
+      memcpy(g_mazeOrigin, g_maze, sizeof(g_maze));
     }
 
     void changeRandom(int y, int x){
@@ -101,6 +116,7 @@ class MazeFixing{
       double bestScore = 0.0;
       int bestType = 0;
 
+      /*
       for(int i = 0; i < 3; i++){
         int type = list[i];
         g_maze[y][x] = type;
@@ -111,6 +127,9 @@ class MazeFixing{
           bestType = type;
         }
       }
+      */
+
+      bestType = S;
 
       g_maze[y][x] = bestType;
       createQuery(y,x,bestType);
@@ -129,6 +148,16 @@ class MazeFixing{
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
+          if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && f > 0){
+            g_maze[y][x] = S;
+            createQuery(y,x,S);
+            f--;
+          }
+        }
+      }
+
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
           if(inside(y,x) && g_maze[y][x] == U && f > 0){
             //changeRandom(y,x);
             changeBest(y,x);
@@ -136,6 +165,20 @@ class MazeFixing{
           }
         }
       }
+
+      while(f > 0){
+        for(int y = 0; y < g_height && f > 0; y++){
+          for(int x = 0; x < g_width && f > 0; x++){
+            if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S){
+              g_maze[y][x] = S;
+              createQuery(y,x,S);
+              f--;
+            }
+          }
+        }
+      }
+
+      fprintf(stderr,"remain f count = %d\n", f);
     }
 
     vector<string> improve(vector<string> maze, int F){
@@ -151,6 +194,22 @@ class MazeFixing{
 
     bool inside(int y, int x){
       return (0 <= y && 0 <= x && y < g_height && x < g_width && g_maze[y][x] != W);
+    }
+
+    bool outside(int y, int x){
+      for(int i = 0; i < 4; i++){
+        int ny = y + DY[i];
+        int nx = x + DX[i];
+
+        if(g_maze[ny][nx] == W){
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    int calcOutSideDist(int y, int x){
     }
 
     double calcScore(){
