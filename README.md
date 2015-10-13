@@ -51,9 +51,17 @@ Method signature: vector <string> improve(vector <string> maze, int F)
     
  
 Notes
-- Each cell you change must be contained within the maze (you can't change '.' cells into maze cells). Both old and new type of cell must be one of: 'R','L','U' or 'S'.
+- Each cell you change must be contained within the maze (you can't change '.' cells into maze cells). 
+あなたは各セルの状態を変更することが出来ます。'.'は変更できません。
+Both old and new type of cell must be one of: 'R','L','U' or 'S'.
+古いまたは新しい状態に変更できるのは'R','L','U' or 'S'のみです
 - Borders of maze (first and last row and column) will contain only '.' cells.
+迷路の最初および最後の要素はかならず'.'のみで構成されています。
 - The width and height of the maze are chosen between 10 and 80, inclusive.
+迷路のサイズは10から80で構成されています。
 - The number of allowed fixes F will be between N/10 and N/3, where N is the number of non-'.' cells in the maze.
+Fの数はN/10からN/3の数で構成されています。Nは'.'ではないセルの数です
 - The time limit is 10 seconds and the memory limit is 1024MB.
+制限時間は10秒、メモリは1GBまでです
 - There is 10 examples cases and 100 provisional cases.
+exampleは10ケース、本番は100ケースあります。
