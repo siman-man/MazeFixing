@@ -157,7 +157,6 @@ class MazeFixing{
     void solve(){
       int f = g_F;
 
-      /*
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && f > 0){
@@ -167,7 +166,6 @@ class MazeFixing{
           }
         }
       }
-      */
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -181,7 +179,7 @@ class MazeFixing{
 
       calcScore();
 
-      int dist = 0;
+      int dist = 2;
       while(f > 0){
         for(int y = 0; y < g_height && f > 0; y++){
           for(int x = 0; x < g_width && f > 0; x++){
