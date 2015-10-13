@@ -1,50 +1,500 @@
 W = 10, H = 10, cells in maze N = 60
 Cells to fix F = 14
 remain f count = 0
-Current = 0.850000
-Score = 0.85
+Current = 1.000000
+Score = 1.0
 W = 20, H = 20, cells in maze N = 260
 Cells to fix F = 59
 remain f count = 0
-Current = 0.492308
-Score = 0.49230769230769234
+Current = 0.615385
+Score = 0.6153846153846154
 W = 30, H = 30, cells in maze N = 684
 Cells to fix F = 117
 remain f count = 0
-Current = 0.340643
-Score = 0.3406432748538012
+Current = 0.302632
+Score = 0.3026315789473684
 W = 53, H = 78, cells in maze N = 3584
 Cells to fix F = 785
 remain f count = 0
-Current = 0.202288
-Score = 0.20228794642857142
+Current = 0.144252
+Score = 0.14425223214285715
 W = 66, H = 58, cells in maze N = 2916
 Cells to fix F = 915
 remain f count = 0
-Current = 0.472565
-Score = 0.4725651577503429
+Current = 0.435528
+Score = 0.4355281207133059
 W = 43, H = 42, cells in maze N = 1448
 Cells to fix F = 265
 remain f count = 0
-Current = 0.276934
-Score = 0.27693370165745856
+Current = 0.252762
+Score = 0.2527624309392265
 W = 44, H = 31, cells in maze N = 1010
 Cells to fix F = 287
 remain f count = 0
-Current = 0.625743
-Score = 0.6257425742574257
+Current = 0.631683
+Score = 0.6316831683168317
 W = 73, H = 60, cells in maze N = 3722
 Cells to fix F = 908
 remain f count = 0
-Current = 0.250403
-Score = 0.25040300913487373
+Current = 0.254970
+Score = 0.25497044599677593
 W = 76, H = 40, cells in maze N = 2328
 Cells to fix F = 323
 remain f count = 0
-Current = 0.243127
-Score = 0.24312714776632302
+Current = 0.170533
+Score = 0.17053264604810997
 W = 80, H = 80, cells in maze N = 5484
 Cells to fix F = 1804
 remain f count = 0
-Current = 0.340992
-Score = 0.3409919766593727
+Current = 0.344821
+Score = 0.3448212983223924
+W = 24, H = 58, cells in maze N = 1148
+Cells to fix F = 333
+remain f count = 0
+Current = 0.595819
+Score = 0.5958188153310104
+W = 27, H = 27, cells in maze N = 545
+Cells to fix F = 93
+remain f count = 0
+Current = 0.359633
+Score = 0.3596330275229358
+W = 74, H = 80, cells in maze N = 5112
+Cells to fix F = 629
+remain f count = 0
+Current = 0.129499
+Score = 0.12949921752738655
+W = 69, H = 22, cells in maze N = 1072
+Cells to fix F = 147
+remain f count = 0
+Current = 0.323694
+Score = 0.32369402985074625
+W = 47, H = 34, cells in maze N = 1188
+Cells to fix F = 199
+remain f count = 0
+Current = 0.273569
+Score = 0.2735690235690236
+W = 51, H = 58, cells in maze N = 2444
+Cells to fix F = 780
+remain f count = 0
+Current = 0.385843
+Score = 0.3858428805237316
+W = 73, H = 75, cells in maze N = 4635
+Cells to fix F = 1352
+remain f count = 0
+Current = 0.308738
+Score = 0.3087378640776699
+W = 74, H = 38, cells in maze N = 2188
+Cells to fix F = 451
+remain f count = 0
+Current = 0.284735
+Score = 0.28473491773308957
+W = 22, H = 46, cells in maze N = 840
+Cells to fix F = 120
+remain f count = 0
+Current = 0.367857
+Score = 0.3678571428571429
+W = 46, H = 37, cells in maze N = 1388
+Cells to fix F = 149
+remain f count = 0
+Current = 0.188761
+Score = 0.18876080691642652
+W = 57, H = 68, cells in maze N = 3410
+Cells to fix F = 963
+remain f count = 0
+Current = 0.316129
+Score = 0.3161290322580645
+W = 65, H = 51, cells in maze N = 2771
+Cells to fix F = 833
+remain f count = 0
+Current = 0.376759
+Score = 0.3767592926741249
+W = 22, H = 36, cells in maze N = 632
+Cells to fix F = 150
+remain f count = 0
+Current = 0.588608
+Score = 0.5886075949367089
+W = 54, H = 58, cells in maze N = 2624
+Cells to fix F = 280
+remain f count = 0
+Current = 0.164634
+Score = 0.16463414634146342
+W = 26, H = 65, cells in maze N = 1408
+Cells to fix F = 196
+remain f count = 0
+Current = 0.241477
+Score = 0.24147727272727273
+W = 36, H = 46, cells in maze N = 1356
+Cells to fix F = 227
+remain f count = 0
+Current = 0.266962
+Score = 0.2669616519174041
+W = 16, H = 65, cells in maze N = 854
+Cells to fix F = 247
+remain f count = 0
+Current = 0.766979
+Score = 0.7669789227166276
+W = 14, H = 73, cells in maze N = 824
+Cells to fix F = 211
+remain f count = 0
+Current = 0.809466
+Score = 0.8094660194174758
+W = 24, H = 44, cells in maze N = 884
+Cells to fix F = 284
+remain f count = 0
+Current = 0.652715
+Score = 0.6527149321266968
+W = 24, H = 64, cells in maze N = 1288
+Cells to fix F = 266
+remain f count = 0
+Current = 0.382764
+Score = 0.3827639751552795
+W = 17, H = 55, cells in maze N = 779
+Cells to fix F = 224
+remain f count = 0
+Current = 0.629012
+Score = 0.6290115532734275
+W = 16, H = 68, cells in maze N = 896
+Cells to fix F = 134
+remain f count = 0
+Current = 0.419643
+Score = 0.41964285714285715
+W = 65, H = 64, cells in maze N = 3642
+Cells to fix F = 1155
+remain f count = 0
+Current = 0.386601
+Score = 0.38660076880834704
+W = 79, H = 77, cells in maze N = 5299
+Cells to fix F = 1485
+remain f count = 0
+Current = 0.228156
+Score = 0.22815625589733912
+W = 18, H = 72, cells in maze N = 1092
+Cells to fix F = 305
+remain f count = 0
+Current = 0.634615
+Score = 0.6346153846153846
+W = 76, H = 13, cells in maze N = 634
+Cells to fix F = 210
+remain f count = 0
+Current = 0.932177
+Score = 0.9321766561514195
+W = 25, H = 42, cells in maze N = 880
+Cells to fix F = 218
+remain f count = 0
+Current = 0.402273
+Score = 0.4022727272727273
+W = 60, H = 21, cells in maze N = 754
+Cells to fix F = 203
+remain f count = 0
+Current = 0.724138
+Score = 0.7241379310344828
+W = 74, H = 66, cells in maze N = 4152
+Cells to fix F = 444
+remain f count = 0
+Current = 0.132707
+Score = 0.13270712909441232
+W = 16, H = 12, cells in maze N = 128
+Cells to fix F = 40
+remain f count = 0
+Current = 0.937500
+Score = 0.9375
+W = 42, H = 20, cells in maze N = 468
+Cells to fix F = 64
+remain f count = 0
+Current = 0.420940
+Score = 0.42094017094017094
+W = 75, H = 39, cells in maze N = 2333
+Cells to fix F = 654
+remain f count = 0
+Current = 0.480069
+Score = 0.4800685812258894
+W = 66, H = 76, cells in maze N = 4400
+Cells to fix F = 1055
+remain f count = 0
+Current = 0.238182
+Score = 0.2381818181818182
+W = 56, H = 43, cells in maze N = 1930
+Cells to fix F = 640
+remain f count = 0
+Current = 0.525907
+Score = 0.5259067357512953
+W = 26, H = 62, cells in maze N = 1360
+Cells to fix F = 411
+remain f count = 0
+Current = 0.462500
+Score = 0.4625
+W = 58, H = 28, cells in maze N = 1196
+Cells to fix F = 329
+remain f count = 0
+Current = 0.399666
+Score = 0.3996655518394649
+W = 56, H = 78, cells in maze N = 3576
+Cells to fix F = 946
+remain f count = 0
+Current = 0.335570
+Score = 0.33557046979865773
+W = 58, H = 17, cells in maze N = 612
+Cells to fix F = 96
+remain f count = 0
+Current = 0.591503
+Score = 0.5915032679738562
+W = 14, H = 62, cells in maze N = 704
+Cells to fix F = 147
+remain f count = 0
+Current = 0.640625
+Score = 0.640625
+W = 51, H = 76, cells in maze N = 3418
+Cells to fix F = 876
+remain f count = 0
+Current = 0.259508
+Score = 0.25950848449385605
+W = 22, H = 72, cells in maze N = 1336
+Cells to fix F = 188
+remain f count = 0
+Current = 0.306138
+Score = 0.3061377245508982
+W = 68, H = 11, cells in maze N = 594
+Cells to fix F = 172
+remain f count = 0
+Current = 0.737374
+Score = 0.7373737373737373
+W = 34, H = 42, cells in maze N = 1208
+Cells to fix F = 211
+remain f count = 0
+Current = 0.284768
+Score = 0.2847682119205298
+W = 51, H = 68, cells in maze N = 2954
+Cells to fix F = 327
+remain f count = 0
+Current = 0.135410
+Score = 0.13540961408259986
+W = 44, H = 55, cells in maze N = 1838
+Cells to fix F = 248
+remain f count = 0
+Current = 0.211099
+Score = 0.21109902067464636
+W = 68, H = 75, cells in maze N = 4546
+Cells to fix F = 457
+remain f count = 0
+Current = 0.108887
+Score = 0.10888693356797184
+W = 26, H = 60, cells in maze N = 1312
+Cells to fix F = 154
+remain f count = 0
+Current = 0.238567
+Score = 0.2385670731707317
+W = 58, H = 24, cells in maze N = 828
+Cells to fix F = 270
+remain f count = 0
+Current = 0.713768
+Score = 0.7137681159420289
+W = 20, H = 22, cells in maze N = 320
+Cells to fix F = 90
+remain f count = 0
+Current = 0.631250
+Score = 0.63125
+W = 51, H = 64, cells in maze N = 2850
+Cells to fix F = 401
+remain f count = 0
+Current = 0.160702
+Score = 0.1607017543859649
+W = 45, H = 19, cells in maze N = 579
+Cells to fix F = 120
+remain f count = 0
+Current = 0.566494
+Score = 0.5664939550949913
+W = 29, H = 19, cells in maze N = 383
+Cells to fix F = 84
+remain f count = 0
+Current = 0.746736
+Score = 0.7467362924281984
+W = 24, H = 32, cells in maze N = 604
+Cells to fix F = 116
+remain f count = 0
+Current = 0.359272
+Score = 0.35927152317880795
+W = 35, H = 28, cells in maze N = 754
+Cells to fix F = 132
+remain f count = 0
+Current = 0.330239
+Score = 0.3302387267904509
+W = 56, H = 71, cells in maze N = 3310
+Cells to fix F = 513
+remain f count = 0
+Current = 0.164653
+Score = 0.1646525679758308
+W = 43, H = 30, cells in maze N = 980
+Cells to fix F = 287
+remain f count = 0
+Current = 0.508163
+Score = 0.5081632653061224
+W = 39, H = 13, cells in maze N = 343
+Cells to fix F = 85
+remain f count = 0
+Current = 0.889213
+Score = 0.8892128279883382
+W = 10, H = 36, cells in maze N = 268
+Cells to fix F = 54
+remain f count = 0
+Current = 0.813433
+Score = 0.8134328358208955
+W = 44, H = 50, cells in maze N = 1788
+Cells to fix F = 425
+remain f count = 0
+Current = 0.381432
+Score = 0.3814317673378076
+W = 72, H = 37, cells in maze N = 1946
+Cells to fix F = 623
+remain f count = 0
+Current = 0.478931
+Score = 0.4789311408016444
+W = 27, H = 38, cells in maze N = 844
+Cells to fix F = 86
+remain f count = 0
+Current = 0.232227
+Score = 0.23222748815165878
+W = 41, H = 23, cells in maze N = 651
+Cells to fix F = 80
+remain f count = 0
+Current = 0.396313
+Score = 0.39631336405529954
+W = 54, H = 29, cells in maze N = 1164
+Cells to fix F = 137
+remain f count = 0
+Current = 0.225945
+Score = 0.2259450171821306
+W = 63, H = 75, cells in maze N = 4201
+Cells to fix F = 1267
+remain f count = 0
+Current = 0.337777
+Score = 0.33777671982861224
+W = 13, H = 57, cells in maze N = 593
+Cells to fix F = 117
+remain f count = 0
+Current = 0.532884
+Score = 0.5328836424957841
+W = 39, H = 22, cells in maze N = 648
+Cells to fix F = 146
+remain f count = 0
+Current = 0.561728
+Score = 0.5617283950617284
+W = 25, H = 51, cells in maze N = 1047
+Cells to fix F = 118
+remain f count = 0
+Current = 0.293219
+Score = 0.2932187201528176
+W = 78, H = 74, cells in maze N = 5072
+Cells to fix F = 1117
+remain f count = 0
+Current = 0.140576
+Score = 0.1405757097791798
+W = 66, H = 50, cells in maze N = 2836
+Cells to fix F = 769
+remain f count = 0
+Current = 0.366361
+Score = 0.366361071932299
+W = 65, H = 52, cells in maze N = 2854
+Cells to fix F = 728
+remain f count = 0
+Current = 0.331465
+Score = 0.3314646110721794
+W = 12, H = 12, cells in maze N = 92
+Cells to fix F = 28
+remain f count = 0
+Current = 0.956522
+Score = 0.9565217391304348
+W = 54, H = 35, cells in maze N = 1476
+Cells to fix F = 270
+remain f count = 0
+Current = 0.228320
+Score = 0.22831978319783197
+W = 15, H = 53, cells in maze N = 647
+Cells to fix F = 212
+remain f count = 0
+Current = 0.865533
+Score = 0.865533230293663
+W = 35, H = 60, cells in maze N = 1834
+Cells to fix F = 572
+remain f count = 0
+Current = 0.474373
+Score = 0.4743729552889858
+W = 25, H = 32, cells in maze N = 606
+Cells to fix F = 84
+remain f count = 0
+Current = 0.372937
+Score = 0.37293729372937295
+W = 68, H = 71, cells in maze N = 4194
+Cells to fix F = 724
+remain f count = 0
+Current = 0.149261
+Score = 0.1492608488316643
+W = 33, H = 56, cells in maze N = 1530
+Cells to fix F = 492
+remain f count = 0
+Current = 0.529412
+Score = 0.5294117647058824
+W = 48, H = 21, cells in maze N = 722
+Cells to fix F = 221
+remain f count = 0
+Current = 0.630194
+Score = 0.6301939058171745
+W = 32, H = 10, cells in maze N = 196
+Cells to fix F = 44
+remain f count = 0
+Current = 0.862245
+Score = 0.8622448979591837
+W = 10, H = 22, cells in maze N = 156
+Cells to fix F = 43
+remain f count = 0
+Current = 0.993590
+Score = 0.9935897435897436
+W = 19, H = 11, cells in maze N = 153
+Cells to fix F = 49
+remain f count = 0
+Current = 0.797386
+Score = 0.7973856209150327
+W = 78, H = 44, cells in maze N = 2828
+Cells to fix F = 515
+remain f count = 0
+Current = 0.168317
+Score = 0.16831683168316833
+W = 41, H = 34, cells in maze N = 1092
+Cells to fix F = 111
+remain f count = 0
+Current = 0.198718
+Score = 0.1987179487179487
+W = 23, H = 60, cells in maze N = 1178
+Cells to fix F = 333
+remain f count = 0
+Current = 0.634975
+Score = 0.634974533106961
+W = 70, H = 77, cells in maze N = 4752
+Cells to fix F = 1196
+remain f count = 0
+Current = 0.245160
+Score = 0.24515993265993266
+W = 31, H = 68, cells in maze N = 1822
+Cells to fix F = 411
+remain f count = 0
+Current = 0.274973
+Score = 0.27497255762897915
+W = 35, H = 28, cells in maze N = 746
+Cells to fix F = 159
+remain f count = 0
+Current = 0.317694
+Score = 0.31769436997319034
+W = 71, H = 16, cells in maze N = 598
+Cells to fix F = 188
+remain f count = 0
+Current = 0.909699
+Score = 0.9096989966555183
+W = 15, H = 80, cells in maze N = 998
+Cells to fix F = 313
+remain f count = 0
+Current = 0.709419
+Score = 0.7094188376753507
+W = 65, H = 70, cells in maze N = 3984
+Cells to fix F = 1056
+remain f count = 0
+Current = 0.252761
+Score = 0.2527610441767068

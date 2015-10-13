@@ -38,8 +38,10 @@ int g_height;
 
 int g_maze[MAX_WIDTH][MAX_HEIGHT];
 int g_mazeOrigin[MAX_WIDTH][MAX_HEIGHT];
+int g_outsideDist[MAX_WIDTH][MAX_HEIGHT];
 int g_visitedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
+int g_visitedOnce[MAX_HEIGHT][MAX_WIDTH];
 
 unsigned long long xor128(){
   static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
@@ -100,6 +102,15 @@ class MazeFixing{
         }
       }
 
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          if(g_maze[y][x] != W){
+            int dist = calcOutSideDist(y,x);
+            g_outsideDist[y][x] = dist;
+          }
+        }
+      }
+
       memcpy(g_mazeOrigin, g_maze, sizeof(g_maze));
     }
 
@@ -146,6 +157,7 @@ class MazeFixing{
     void solve(){
       int f = g_F;
 
+      /*
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && f > 0){
@@ -155,6 +167,7 @@ class MazeFixing{
           }
         }
       }
+      */
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -166,16 +179,23 @@ class MazeFixing{
         }
       }
 
+      calcScore();
+
+      int dist = 0;
       while(f > 0){
         for(int y = 0; y < g_height && f > 0; y++){
           for(int x = 0; x < g_width && f > 0; x++){
-            if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S){
+            if(g_visitedOnce[y][x] && g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && g_outsideDist[y][x] == dist){
               g_maze[y][x] = S;
               createQuery(y,x,S);
               f--;
+              calcScore();
             }
           }
         }
+
+        dist += 2;
+        if(dist > g_height/2) break;
       }
 
       fprintf(stderr,"remain f count = %d\n", f);
@@ -210,11 +230,39 @@ class MazeFixing{
     }
 
     int calcOutSideDist(int y, int x){
+      queue<COORD> que;
+      que.push(coord(y,x,0));
+      map<int, bool> checkList;
+
+      while(!que.empty()){
+        COORD coord = que.front(); que.pop();
+
+        int z = coord.y * g_width + coord.x;
+        if(checkList[z]) continue;
+        checkList[z] = true;
+
+        if(outside(coord.y, coord.x)){
+          return coord.dist;
+        }
+
+        for(int i = 0; i < 4; i++){
+          int ny = coord.y + DY[i];
+          int nx = coord.x + DX[i];
+          int nz = ny * g_width + nx;
+
+          if(!checkList[nz]){
+            que.push(COORD(ny,nx,coord.dist+1));
+          }
+        }
+      }
+
+      return 0;
     }
 
     double calcScore(){
       memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
+      memset(g_visitedOnce, 0, sizeof(g_visitedOnce));
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -256,6 +304,7 @@ class MazeFixing{
         return;
       }
       g_visitedOnePath[ny][nx] = 1;
+      g_visitedOnce[ny][nx] = 1;
 
       int type = g_maze[ny][nx];
 
