@@ -40,6 +40,21 @@ int g_maze[MAX_WIDTH][MAX_HEIGHT];
 int g_visitedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
 
+unsigned long long xor128(){
+  static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
+  unsigned long long rt = (rx ^ (rx<<11));
+  rx=ry; ry=rz; rz=rw;
+  return (rw=(rw^(rw>>19))^(rt^(rt>>8)));
+}
+
+string int2string(int number){
+  stringstream ss; 
+  ss << number;
+  return ss.str();
+}
+
+vector<string> g_query;
+
 class MazeFixing{
   public:
 
@@ -73,15 +88,65 @@ class MazeFixing{
       }
     }
 
+    void changeRandom(int y, int x){
+      int list[3] = {S,R,L};
+
+      int type = list[xor128()%3];
+      createQuery(y,x,type);
+      g_maze[y][x] = type;
+    }
+
+    void changeBest(int y, int x){
+      int list[3] = {S,R,L};
+      double bestScore = 0.0;
+      int bestType = 0;
+
+      for(int i = 0; i < 3; i++){
+        int type = list[i];
+        g_maze[y][x] = type;
+        double score = calcScore();
+
+        if(bestScore < score){
+          bestScore = score;
+          bestType = type;
+        }
+      }
+
+      g_maze[y][x] = bestType;
+      createQuery(y,x,bestType);
+    }
+
+    void createQuery(int y, int x, int type){
+      string query = "";
+      query += int2string(y) + " ";
+      query += int2string(x) + " ";
+      query += g_cellType[type+1];
+      g_query.push_back(query);
+    }
+
+    void solve(){
+      int f = g_F;
+
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          if(inside(y,x) && g_maze[y][x] == U && f > 0){
+            changeRandom(y,x);
+            //changeBest(y,x);
+            f--;
+          }
+        }
+      }
+    }
+
     vector<string> improve(vector<string> maze, int F){
-      vector<string> ret;
       init(maze, F);
 
-      showMaze();
+      solve();
+      //showMaze();
 
-      fprintf(stderr,"Current = %4.2f\n", calcScore());
+      fprintf(stderr,"Current = %f\n", calcScore());
 
-      return ret;
+      return g_query;
     }
 
     bool inside(int y, int x){
@@ -119,7 +184,7 @@ class MazeFixing{
         }
       }
 
-      fprintf(stderr,"nvis = %d\n", nvis);
+      //fprintf(stderr,"nvis = %d\n", nvis);
 
       return nvis / (double)g_N;
     }

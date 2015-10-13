@@ -23,7 +23,7 @@ A path is a sequence of moves between cells which you can use to enter the maze 
 あなたは一度入ってから他の境界に突き当たるまで探索を続けます
 cell and to exit it from another (or the same) border cell. 
 A path can visit any cell only once, but different paths can visit same cell. Blue lines show valid paths on the image. 
-各セルには1度しかたどり着けません。が複数のパスで同じセルに到達は出来ます。青いラインが有効な経路です
+1つの経路において同じセルを使用してはいけませんが、異なるパスが同じセルを通過するのは大丈夫です。
  
 
 To modify the maze, you can use a limited number of maze fix operations. 
@@ -40,15 +40,6 @@ Your score for a test case will be calculated as the number of cells visited by 
 Tools
 An offline tester/visualizer is available here. You can use it to test/debug your solution locally. You can also check its source code for exact implementation of test case generation and score calculation.
  
-Definition
-      
-Class:  MazeFixing
-Method: improve
-Parameters: vector <string>, int
-Returns:  vector <string>
-Method signature: vector <string> improve(vector <string> maze, int F)
-(be sure your method is public)
-    
  
 Notes
 - Each cell you change must be contained within the maze (you can't change '.' cells into maze cells). 
@@ -65,3 +56,43 @@ Fの数はN/10からN/3の数で構成されています。Nは'.'ではない�
 制限時間は10秒、メモリは1GBまでです
 - There is 10 examples cases and 100 provisional cases.
 exampleは10ケース、本番は100ケースあります。
+
+
+# 考察
+
+## 未知のものは何か
+
+* 迷路をなるべく多く探索できるような、修正クエリの集合
+
+## 与えられているもの（データ）は何か
+
+* 迷路の情報と修正可能なセルの個数
+
+## 条件は何か
+
+* 空のセルを修正してはいけない、同じセルは1度しか辿ってはいけない（ただ一度の探索で出来た複数の経路については同じセルを使用しても良い）
+
+## 条件の各部を分離せよ、それを書き表すことができるか
+
+* この迷路から導ける最長の経路を求めよ。
+** 最長経路の作成にはコストが大きすぎる。
+
+## 同じ問題を少し違った形でみたことがあるか
+
+* 今のところ無い
+
+## 似た問題を知っているか
+
+* 最長経路探索問題が昔合った気がする
+
+## 似た問題でその結果を使うことが出来ないか
+
+* 最長経路、つまりなるべく多くのセルを探索できるような経路を定義して、それに沿うようにセルを修正する
+こと自体は可能だと思う。ただ、修正コストが高すぎるきがする。
+
+
+# 計画
+
+* 迷路から'U'を削除する
+** 'U'の動作的に探索時に遭遇するとそこで探索が終了してしまうので、存在するのはあまり好ましくない
+*** 消してみた結果、スコアが上昇した
