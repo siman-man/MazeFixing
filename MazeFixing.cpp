@@ -130,8 +130,8 @@ class MazeFixing{
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(inside(y,x) && g_maze[y][x] == U && f > 0){
-            changeRandom(y,x);
-            //changeBest(y,x);
+            //changeRandom(y,x);
+            changeBest(y,x);
             f--;
           }
         }
