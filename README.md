@@ -33,17 +33,12 @@ Eのタイプを除いた他のセルの修正願いを出せます。
 except for 'E'. You may not fix a cell that contains 'E'.
 Eには修正できません！
 
-Implementation Details
-Your code should implement one method improve(vector <string>maze, int F). maze describes the maze itself: each character in maze will be 'R','L','U','S','E' for cells of the maze or '.' for a cell outside of the maze. F is the number of fixes you are allowed to use. Your return from this method should be a vector <string>, containing at most F elements. Each element of your return should be formatted as "R C T", where R and C are row and column coordinates of the cell you want to fix, and T is the new type of this cell.
-Scoring
-Your score for a test case will be calculated as the number of cells visited by at least one path, divided by the total number of cells in the maze ('.' cells are not counted). If your return contains an invalid fix or too many fixes, your score for this test case will be 0. Your overall score will be a sum of your scores for individual test cases.
-Tools
-An offline tester/visualizer is available here. You can use it to test/debug your solution locally. You can also check its source code for exact implementation of test case generation and score calculation.
- 
- 
+
 Notes
+注意点
+
 - Each cell you change must be contained within the maze (you can't change '.' cells into maze cells). 
-あなたは各セルの状態を変更することが出来ます。'.'は変更できません。
+あなたは各セルの状態を変更することが出来ます。迷路の盤面に含まれている'.'は変更できません。
 Both old and new type of cell must be one of: 'R','L','U' or 'S'.
 古いまたは新しい状態に変更できるのは'R','L','U' or 'S'のみです
 - Borders of maze (first and last row and column) will contain only '.' cells.
@@ -66,10 +61,11 @@ exampleは10ケース、本番は100ケースあります。
 
 ## 与えられているもの（データ）は何か
 
-* 迷路の情報と修正可能なセルの個数
+* 迷路の盤面情報と修正可能なセルの個数
 
 ## 条件は何か
 
+* 経路の探索は、任意の境界ポイントからスタートする
 * 空のセルを修正してはいけない、同じセルは1度しか辿ってはいけない（ただ一度の探索で出来た複数の経路については同じセルを使用しても良い）
 
 ## 条件の各部を分離せよ、それを書き表すことができるか
@@ -87,8 +83,7 @@ exampleは10ケース、本番は100ケースあります。
 
 ## 似た問題でその結果を使うことが出来ないか
 
-* 最長経路、つまりなるべく多くのセルを探索できるような経路を定義して、それに沿うようにセルを修正する
-こと自体は可能だと思う。ただ、修正コストが高すぎるきがする。
+* 最長経路、つまりなるべく多くのセルを探索できるような経路を定義して、それに沿うようにセルを修正すること自体は可能だと思う。ただ、修正コストが高すぎるきがする。
 
 
 # 計画
@@ -96,3 +91,14 @@ exampleは10ケース、本番は100ケースあります。
 * 迷路から'U'を削除する
 ** 'U'の動作的に探索時に遭遇するとそこで探索が終了してしまうので、存在するのはあまり好ましくない
 *** 消してみた結果、スコアが上昇した
+
+* 貪欲に探索してみる
+** ある1点からスタートしてどこかにたどり着くまで経路を修正しながら探索する
+** たどり着くまでの経路長と修正個数を評価値として計算して良さそうなやつから採用していく
+
+* 焼き鈍してみる
+** 近傍の定義
+** ある1点からスタートしてどこかにたどり着くまで経路を修正しながら探索する
+*** このときRやLが2回連続で到達しないようにする
+*** UはSに置き換える
+*** たどり着くまでの修正回数やその経路長等を評価値として算出する
