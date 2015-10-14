@@ -262,8 +262,6 @@ class MazeFixing{
         dist += 2;
         if(dist > g_height/2) break;
       }
-
-      fprintf(stderr,"remain f count = %d\n", f);
     }
 
     vector<string> improve(vector<string> maze, int F){
@@ -271,32 +269,39 @@ class MazeFixing{
 
       //solve();
       //showMaze();
+      int cnt = 0;
 
-      double maxValue = 0.0;
-      int bestId = 0;
+      while(g_F > 0){
+        double maxValue = 0.0;
+        bool update = false;
+        int bestId = 0;
 
-      for(int id = 0; id < g_ID; id++){
-        EXPLORER *exp = getExplorer(id);
+        for(int id = 0; id < g_ID; id++){
+          EXPLORER *exp = getExplorer(id);
 
-        double value = calcWalkValue(exp->y, exp->x, exp->curDir, exp->curDir);
-        //fprintf(stderr,"y = %d, x = %d, d = %d, value = %4.2f\n", exp->y, exp->x, exp->curDir, value);
+          double value = calcWalkValue(exp->y, exp->x, exp->curDir, exp->curDir);
+          //fprintf(stderr,"y = %d, x = %d, d = %d, value = %4.2f\n", exp->y, exp->x, exp->curDir, value);
 
-        if(maxValue < value){
-          maxValue = value;
-          bestId = id;
+          if(maxValue < value){
+            maxValue = value;
+            bestId = id;
+            update = true;
+          }
         }
+
+        if(!update) break;
+        cnt++;
+
+        fprintf(stderr,"bestId = %d\n", bestId);
+        EXPLORER *exp = getExplorer(bestId);
+        memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
+        memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
+        realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
       }
 
-      fprintf(stderr,"bestId = %d\n", bestId);
-      EXPLORER *exp = getExplorer(bestId);
-      memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
-      memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
-      realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
-
       fprintf(stderr,"Current = %f\n", calcScore());
-
+      fprintf(stderr,"remain f count = %d\n", g_F);
       createQuery();
-
       fprintf(stderr,"query size = %lu\n", g_query.size());
 
       return g_query;
@@ -331,7 +336,7 @@ class MazeFixing{
 
       walk(y, x, curDir, origDir);
 
-      fprintf(stderr,"fixCount = %d, pathLen = %d\n", g_fixCount, g_pathLen);
+      //fprintf(stderr,"fixCount = %d, pathLen = %d\n", g_fixCount, g_pathLen);
       if(g_fixCount == 0 || g_fixCount > g_F){
         return 0.0;
       }else{
@@ -350,7 +355,7 @@ class MazeFixing{
 
       int type = g_maze[ny][nx];
 
-      if(type != W && !g_visitedOverall[ny][nx]){
+      if(type != W && !g_notChangedPath[ny][nx] && !g_visitedOverall[ny][nx]){
         g_pathLen += 1;
       }
       if(pathE){
@@ -426,9 +431,12 @@ class MazeFixing{
       if(type == W){
         for(int dy = 0; dy < g_height; dy++){
           for(int dx = 0; dx < g_width; dx++){
-            if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx]){
-              g_maze[dy][dx] = g_tempMaze[dy][dx];
-              //fprintf(stderr,"y = %d, x = %d, change %c -> %c\n", dy, dx, g_cellType[g_maze[dy][dx]+1], g_cellType[g_tempMaze[dy][dx]+1]);
+            if(!g_notChangedPath[dy][dx] && g_visitedOnePath[dy][dx]){
+              if(g_changedOnePath[dy][dx]){
+                g_maze[dy][dx] = g_tempMaze[dy][dx];
+                //fprintf(stderr,"y = %d, x = %d, change %c -> %c\n", dy, dx, g_cellType[g_maze[dy][dx]+1], g_cellType[g_tempMaze[dy][dx]+1]);
+                g_F -= 1;
+              }
               g_notChangedPath[dy][dx] = 1;
             }
           }
