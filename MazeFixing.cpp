@@ -26,15 +26,20 @@ const int U = 2;
 const int S = 3;
 const int E = 4;
 
+const int g_direct[4] = {S, R, U, L};
+
 const int DY[4] = {-1, 0, 1, 0};
 const int DX[4] = { 0, 1, 0,-1};
 
 const int MAX_WIDTH = 80;
 const int MAX_HEIGHT = 80;
 int g_F;
+int g_ID;
 int g_N;
 int g_width;
 int g_height;
+
+int g_fixCount;
 
 int g_maze[MAX_WIDTH][MAX_HEIGHT];
 int g_mazeOrigin[MAX_WIDTH][MAX_HEIGHT];
@@ -68,13 +73,42 @@ typedef struct COORD {
   }
 } coord;
 
+typedef struct EXPLORER {
+  int id;
+  int y;
+  int x;
+  int pathLen;
+  int curDir;
+
+  EXPLORER(int id, int y, int x, int curDir){
+    this->id = id;
+    this->y = y;
+    this->x = x;
+    this->curDir = curDir;
+    this->pathLen = 0;
+  }
+} explorer;
+
+typedef struct PATH {
+  int pathLen;
+  int fixCount;
+  vector<coord> pathList;
+
+  PATH(){
+    this->pathLen = 0;
+    this->fixCount = 0;
+  }
+} path;
+
 vector<string> g_query;
+vector<EXPLORER> g_explorerList;
 
 class MazeFixing{
   public:
 
     void init(vector<string> maze, int F){
       g_F = F;
+      g_ID = 0;
       g_N = 0;
       g_height = maze.size();
       g_width = maze[0].size();
@@ -111,7 +145,34 @@ class MazeFixing{
         }
       }
 
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          if(g_maze[y][x] == W){
+            for(int i = 0; i < 4; i++){
+              int ny = y + DY[i];
+              int nx = x + DX[i];
+
+              if(outside(ny, nx)){
+                EXPLORER exp = createExplorer(y,x,i);
+                g_explorerList.push_back(exp);
+              }
+            }
+          }
+        }
+      }
+
       memcpy(g_mazeOrigin, g_maze, sizeof(g_maze));
+    }
+
+    EXPLORER createExplorer(int y, int x, int curDir){
+      EXPLORER exp(g_ID, y, x, curDir);
+      g_ID++;
+
+      return exp;
+    }
+
+    EXPLORER *getExplorer(int id){
+      return &g_explorerList[id];
     }
 
     void changeRandom(int y, int x){
@@ -205,6 +266,12 @@ class MazeFixing{
       solve();
       //showMaze();
 
+      for(int id = 0; id < g_ID; id++){
+        EXPLORER *exp = getExplorer(id);
+
+        fprintf(stderr,"y = %d, x = %d, d = %d\n", exp->y, exp->x, exp->curDir);
+      }
+
       fprintf(stderr,"Current = %f\n", calcScore());
 
       return g_query;
@@ -215,6 +282,9 @@ class MazeFixing{
     }
 
     bool outside(int y, int x){
+      if(y < 0 || x < 0 || g_height <= y || g_width <= x) return false;
+      if(g_maze[y][x] == W) return false;
+
       for(int i = 0; i < 4; i++){
         int ny = y + DY[i];
         int nx = x + DX[i];
@@ -225,6 +295,100 @@ class MazeFixing{
       }
 
       return false;
+    }
+
+    void calcWalkValue(int y, int x, int curDir, int origDir){
+      int ny = y + DY[curDir];
+      int nx = x + DX[curDir];
+
+      if(g_visitedOnePath[ny][nx]){
+        return;
+      }
+      g_visitedOnePath[ny][nx] = 1;
+
+      int type = g_maze[ny][nx];
+
+      if(type == W){
+        for(int y = 0; y < g_height; y++){
+          for(int x = 0; x < g_width; x++){
+            g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
+          }
+        }
+      }else if(type == S){
+        calcWalkValue(ny, nx, curDir, origDir);
+      }else if(type == R){
+        if((curDir+1)%4 == origDir){
+          g_fixCount += 1;
+          calcWalkValue(ny, nx, (curDir+3)%4, origDir);
+        }else{
+          calcWalkValue(ny, nx, (curDir+1)%4, origDir);
+        }
+      }else if(type == U){
+        g_fixCount += 1;
+        calcWalkValue(ny, nx, curDir, origDir);
+      }else if(type == L){
+        if((curDir+3)%4 == origDir){
+          g_fixCount += 1;
+          calcWalkValue(ny, nx, (curDir+1)%4, origDir);
+        }else{
+          calcWalkValue(ny, nx, (curDir+3)%4, origDir);
+        }
+      }else if(type == E){
+        for(int i = 0; i < 4; i++){
+          if(i != 2){
+            calcWalkValue(ny, nx, (curDir+i)%4, (curDir+i)%4);
+          }
+        }
+      }
+
+      g_visitedOnePath[ny][nx] = 0;
+    }
+
+    void walk(int y, int x, int curDir, int origDir, int fixCount){
+      int ny = y + DY[curDir];
+      int nx = x + DX[curDir];
+
+      if(g_visitedOnePath[ny][nx]){
+        return;
+      }
+      g_visitedOnePath[ny][nx] = 1;
+
+      int type = g_maze[ny][nx];
+
+      if(type == W){
+        for(int y = 0; y < g_height; y++){
+          for(int x = 0; x < g_width; x++){
+            g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
+          }
+        }
+      }else if(type == S){
+        walk(ny, nx, curDir, origDir, fixCount);
+      }else if(type == R){
+        if((curDir+1)%4 == origDir){
+          g_maze[ny][nx] = L;
+          walk(ny, nx, (curDir+3)%4, origDir, fixCount+1);
+        }else{
+          walk(ny, nx, (curDir+1)%4, origDir, fixCount);
+        }
+      }else if(type == U){
+        g_maze[ny][nx] = S;
+        walk(ny, nx, curDir, origDir, fixCount+1);
+      }else if(type == L){
+        if((curDir+3)%4 == origDir){
+          g_maze[ny][nx] = R;
+          walk(ny, nx, (curDir+1)%4, origDir, fixCount+1);
+        }else{
+          walk(ny, nx, (curDir+3)%4, origDir, fixCount);
+        }
+      }else if(type == E){
+        for(int i = 0; i < 4; i++){
+          int ny = y + DY[i];
+          int nx = x + DX[i];
+          walk(ny, nx, i, origDir, fixCount);
+        }
+      }
+
+      g_visitedOnePath[ny][nx] = 0;
     }
 
     int calcOutSideDist(int y, int x){
