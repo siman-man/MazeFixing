@@ -32,13 +32,17 @@ const int DX[4] = { 0, 1, 0,-1};
 const int MAX_WIDTH = 80;
 const int MAX_HEIGHT = 80;
 int g_F;
+int g_FO;
 int g_ID;
 int g_N;
 int g_width;
 int g_height;
 
 int g_fixCount;
+int g_changeValue;
 int g_pathLen;
+bool g_success;
+map<int, bool> g_bestIdList;
 
 int g_maze[MAX_WIDTH][MAX_HEIGHT];
 int g_mazeOrigin[MAX_WIDTH][MAX_HEIGHT];
@@ -110,6 +114,7 @@ class MazeFixing{
 
     void init(vector<string> maze, int F){
       g_F = F;
+      g_FO = F;
       g_ID = 0;
       g_N = 0;
       g_height = maze.size();
@@ -279,10 +284,10 @@ class MazeFixing{
         for(int id = 0; id < g_ID; id++){
           EXPLORER *exp = getExplorer(id);
 
-          double value = calcWalkValue(exp->y, exp->x, exp->curDir, exp->curDir);
+          double value = calcWalkValue(exp->id, exp->y, exp->x, exp->curDir, exp->curDir);
           //fprintf(stderr,"y = %d, x = %d, d = %d, value = %4.2f\n", exp->y, exp->x, exp->curDir, value);
 
-          if(maxValue < value){
+          if(maxValue < value && !g_bestIdList[id]){
             maxValue = value;
             bestId = id;
             update = true;
@@ -293,14 +298,16 @@ class MazeFixing{
         cnt++;
 
         fprintf(stderr,"bestId = %d\n", bestId);
+        fprintf(stderr,"remain f count = %d\n", g_F);
         EXPLORER *exp = getExplorer(bestId);
         memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
         memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
         realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
+        g_bestIdList[bestId] = true;
       }
 
       fprintf(stderr,"Current = %f\n", calcScore());
-      fprintf(stderr,"remain f count = %d\n", g_F);
+      fprintf(stderr,"final remain f count = %d\n", g_F);
       createQuery();
       fprintf(stderr,"query size = %lu\n", g_query.size());
 
@@ -327,21 +334,24 @@ class MazeFixing{
       return false;
     }
 
-    double calcWalkValue(int y, int x, int curDir, int origDir){
+    double calcWalkValue(int id, int y, int x, int curDir, int origDir){
       g_fixCount = 0;
       g_pathLen = 0;
+      g_changeValue = 0;
+      g_success = false;
       memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
       memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
 
       walk(y, x, curDir, origDir);
 
-      //fprintf(stderr,"fixCount = %d, pathLen = %d\n", g_fixCount, g_pathLen);
-      if(g_fixCount == 0 || g_fixCount > g_F){
+      //fprintf(stderr,"id = %d, fixCount = %d, pathLen = %d\n", id, g_fixCount, g_pathLen);
+
+      if(!g_success || g_fixCount == 0 || g_fixCount > g_F){
         return 0.0;
       }else{
         return g_pathLen;
-        return g_pathLen / (double)(g_fixCount);
+        return (g_pathLen) / (double)(g_fixCount);
       }
     }
 
@@ -367,6 +377,7 @@ class MazeFixing{
       //fprintf(stderr,"y = %d, x = %d, type = %c\n", ny, nx, g_cellType[type+1]);
 
       if(type == W){
+        g_success = true;
       }else if(type == S){
         walk(ny, nx, curDir, origDir, subLen, pathE);
       }else if(type == R){
