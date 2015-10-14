@@ -26,8 +26,6 @@ const int U = 2;
 const int S = 3;
 const int E = 4;
 
-const int g_direct[4] = {S, R, U, L};
-
 const int DY[4] = {-1, 0, 1, 0};
 const int DX[4] = { 0, 1, 0,-1};
 
@@ -40,13 +38,17 @@ int g_width;
 int g_height;
 
 int g_fixCount;
+int g_pathLen;
 
 int g_maze[MAX_WIDTH][MAX_HEIGHT];
 int g_mazeOrigin[MAX_WIDTH][MAX_HEIGHT];
+int g_tempMaze[MAX_WIDTH][MAX_HEIGHT];
 int g_outsideDist[MAX_WIDTH][MAX_HEIGHT];
 int g_visitedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
 int g_visitedOnce[MAX_HEIGHT][MAX_WIDTH];
+int g_changedOnePath[MAX_HEIGHT][MAX_WIDTH];
+int g_notChangedPath[MAX_HEIGHT][MAX_WIDTH];
 
 unsigned long long xor128(){
   static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
@@ -113,6 +115,7 @@ class MazeFixing{
       g_height = maze.size();
       g_width = maze[0].size();
       memset(g_maze, W, sizeof(g_maze));
+      memset(g_notChangedPath, 0, sizeof(g_notChangedPath));
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -179,13 +182,10 @@ class MazeFixing{
       int list[3] = {S,R,L};
 
       int type = list[xor128()%3];
-      createQuery(y,x,type);
       g_maze[y][x] = type;
     }
 
     void changeBest(int y, int x){
-      int list[3] = {S,R,L};
-      double bestScore = 0.0;
       int bestType = 0;
 
       /*
@@ -204,15 +204,22 @@ class MazeFixing{
       bestType = S;
 
       g_maze[y][x] = bestType;
-      createQuery(y,x,bestType);
     }
 
-    void createQuery(int y, int x, int type){
-      string query = "";
-      query += int2string(y) + " ";
-      query += int2string(x) + " ";
-      query += g_cellType[type+1];
-      g_query.push_back(query);
+    void createQuery(){
+      fprintf(stderr,"createQuery =>\n");
+
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          if(g_maze[y][x] != g_mazeOrigin[y][x]){
+            string query = "";
+            query += int2string(y) + " ";
+            query += int2string(x) + " ";
+            query += g_cellType[g_mazeOrigin[y][x]];
+            g_query.push_back(query);
+          }
+        }
+      }
     }
 
     void solve(){
@@ -222,7 +229,6 @@ class MazeFixing{
         for(int x = 0; x < g_width; x++){
           if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && f > 0){
             g_maze[y][x] = S;
-            createQuery(y,x,S);
             f--;
           }
         }
@@ -246,7 +252,6 @@ class MazeFixing{
           for(int x = 0; x < g_width && f > 0; x++){
             if(g_visitedOnce[y][x] && g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && g_outsideDist[y][x] == dist){
               g_maze[y][x] = S;
-              createQuery(y,x,S);
               f--;
               calcScore();
             }
@@ -263,16 +268,33 @@ class MazeFixing{
     vector<string> improve(vector<string> maze, int F){
       init(maze, F);
 
-      solve();
+      //solve();
       //showMaze();
+
+      double maxValue = 0.0;
+      int bestId = 0;
 
       for(int id = 0; id < g_ID; id++){
         EXPLORER *exp = getExplorer(id);
 
-        fprintf(stderr,"y = %d, x = %d, d = %d\n", exp->y, exp->x, exp->curDir);
+        double value = calcWalkValue(exp->y, exp->x, exp->curDir, exp->curDir);
+        //fprintf(stderr,"y = %d, x = %d, d = %d, value = %4.2f\n", exp->y, exp->x, exp->curDir, value);
+
+        if(maxValue < value){
+          maxValue = value;
+          bestId = id;
+        }
       }
 
+      fprintf(stderr,"bestId = %d\n", bestId);
+      EXPLORER *exp = getExplorer(bestId);
+      memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
+      memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
+      realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
+
       fprintf(stderr,"Current = %f\n", calcScore());
+
+      createQuery();
 
       return g_query;
     }
@@ -297,46 +319,82 @@ class MazeFixing{
       return false;
     }
 
-    void calcWalkValue(int y, int x, int curDir, int origDir){
+    double calcWalkValue(int y, int x, int curDir, int origDir){
+      g_fixCount = 0;
+      g_pathLen = 0;
+      memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
+      memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
+      memset(g_changedOnePath, 0, sizeof(g_changedOnePath));
+
+      walk(y, x, curDir, origDir);
+
+      fprintf(stderr,"fixCount = %d, pathLen = %d\n", g_fixCount, g_pathLen);
+      return g_pathLen / (double)(g_fixCount+1);
+    }
+
+    void walk(int y, int x, int curDir, int origDir, int subLen = 0, bool pathE = false){
       int ny = y + DY[curDir];
       int nx = x + DX[curDir];
 
       if(g_visitedOnePath[ny][nx]){
         return;
       }
-      g_visitedOnePath[ny][nx] = 1;
 
       int type = g_maze[ny][nx];
 
+      if(type != W && !g_visitedOverall[ny][nx]){
+        g_pathLen += 1;
+      }
+      if(pathE){
+        subLen += 1;
+      }
+      g_visitedOnePath[ny][nx] = 1;
+      g_visitedOverall[ny][nx] = 1;
+
+      //fprintf(stderr,"y = %d, x = %d, type = %c\n", ny, nx, g_cellType[type+1]);
+
       if(type == W){
-        for(int y = 0; y < g_height; y++){
-          for(int x = 0; x < g_width; x++){
-            g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
-          }
-        }
       }else if(type == S){
-        calcWalkValue(ny, nx, curDir, origDir);
+        walk(ny, nx, curDir, origDir, subLen, pathE);
       }else if(type == R){
-        if((curDir+1)%4 == origDir){
-          g_fixCount += 1;
-          calcWalkValue(ny, nx, (curDir+3)%4, origDir);
+        if((curDir+1)%4 == (origDir+2)%4){
+          //fprintf(stderr,"y = %d, x = %d, change R -> L\n", ny, nx);
+          if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
+            g_fixCount += 1;
+            g_changedOnePath[ny][nx] = 1;
+            walk(ny, nx, (curDir+3)%4, origDir, subLen, pathE);
+          }else{
+            g_pathLen -= subLen;
+          }
         }else{
-          calcWalkValue(ny, nx, (curDir+1)%4, origDir);
+          walk(ny, nx, (curDir+1)%4, origDir, subLen, pathE);
         }
       }else if(type == U){
-        g_fixCount += 1;
-        calcWalkValue(ny, nx, curDir, origDir);
-      }else if(type == L){
-        if((curDir+3)%4 == origDir){
+        //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
+        if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
           g_fixCount += 1;
-          calcWalkValue(ny, nx, (curDir+1)%4, origDir);
+          g_changedOnePath[ny][nx] = 1;
+          walk(ny, nx, curDir, origDir, subLen, pathE);
         }else{
-          calcWalkValue(ny, nx, (curDir+3)%4, origDir);
+          g_pathLen -= subLen;
+        }
+      }else if(type == L){
+        if((curDir+3)%4 == (origDir+2)%4){
+          //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
+          if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
+            g_fixCount += 1;
+            g_changedOnePath[ny][nx] = 1;
+            walk(ny, nx, (curDir+1)%4, origDir, subLen, pathE);
+          }else{
+            g_pathLen -= subLen;
+          }
+        }else{
+          walk(ny, nx, (curDir+3)%4, origDir, subLen, pathE);
         }
       }else if(type == E){
         for(int i = 0; i < 4; i++){
           if(i != 2){
-            calcWalkValue(ny, nx, (curDir+i)%4, (curDir+i)%4);
+            walk(ny, nx, (curDir+i)%4, (curDir+i)%4, 0, true);
           }
         }
       }
@@ -344,47 +402,64 @@ class MazeFixing{
       g_visitedOnePath[ny][nx] = 0;
     }
 
-    void walk(int y, int x, int curDir, int origDir, int fixCount){
+    void realWalk(int y, int x, int curDir, int origDir){
       int ny = y + DY[curDir];
       int nx = x + DX[curDir];
 
       if(g_visitedOnePath[ny][nx]){
         return;
       }
-      g_visitedOnePath[ny][nx] = 1;
 
       int type = g_maze[ny][nx];
+      g_visitedOnePath[ny][nx] = 1;
+
+      //fprintf(stderr,"y = %d, x = %d, type = %c\n", ny, nx, g_cellType[type+1]);
 
       if(type == W){
         for(int y = 0; y < g_height; y++){
           for(int x = 0; x < g_width; x++){
-            g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
+            if(g_visitedOnePath[ny][nx] && g_changedOnePath[ny][nx]){
+              g_maze[ny][nx] = g_tempMaze[ny][nx];
+              g_notChangedPath[ny][nx] = 1;
+            }
           }
         }
       }else if(type == S){
-        walk(ny, nx, curDir, origDir, fixCount);
+        realWalk(ny, nx, curDir, origDir);
       }else if(type == R){
-        if((curDir+1)%4 == origDir){
-          g_maze[ny][nx] = L;
-          walk(ny, nx, (curDir+3)%4, origDir, fixCount+1);
+        if((curDir+1)%4 == (origDir+2)%4){
+          //fprintf(stderr,"y = %d, x = %d, change R -> L\n", ny, nx);
+          if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
+            g_changedOnePath[ny][nx] = 1;
+            g_tempMaze[ny][nx] = L;
+            realWalk(ny, nx, (curDir+3)%4, origDir);
+          }
         }else{
-          walk(ny, nx, (curDir+1)%4, origDir, fixCount);
+          realWalk(ny, nx, (curDir+1)%4, origDir);
         }
       }else if(type == U){
-        g_maze[ny][nx] = S;
-        walk(ny, nx, curDir, origDir, fixCount+1);
+        //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
+        if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
+          g_changedOnePath[ny][nx] = 1;
+          g_tempMaze[ny][nx] = S;
+          realWalk(ny, nx, curDir, origDir);
+        }
       }else if(type == L){
-        if((curDir+3)%4 == origDir){
-          g_maze[ny][nx] = R;
-          walk(ny, nx, (curDir+1)%4, origDir, fixCount+1);
+        if((curDir+3)%4 == (origDir+2)%4){
+          //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
+          if(!g_changedOnePath[ny][nx] && !g_notChangedPath[ny][nx]){
+            g_changedOnePath[ny][nx] = 1;
+            g_tempMaze[ny][nx] = R;
+            walk(ny, nx, (curDir+1)%4, origDir);
+          }
         }else{
-          walk(ny, nx, (curDir+3)%4, origDir, fixCount);
+          realWalk(ny, nx, (curDir+3)%4, origDir);
         }
       }else if(type == E){
         for(int i = 0; i < 4; i++){
-          int ny = y + DY[i];
-          int nx = x + DX[i];
-          walk(ny, nx, i, origDir, fixCount);
+          if(i != 2){
+            realWalk(ny, nx, (curDir+i)%4, (curDir+i)%4);
+          }
         }
       }
 
@@ -453,8 +528,8 @@ class MazeFixing{
         }
       }
 
-      //fprintf(stderr,"nvis = %d\n", nvis);
 
+      fprintf(stderr,"%d/%d\n", nvis, g_N);
       return nvis / (double)g_N;
     }
 
