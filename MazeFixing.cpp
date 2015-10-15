@@ -139,17 +139,16 @@ typedef struct PATH {
   }
 } path;
 
-typedef struct SEARCHS{
+typedef struct NODE{
   int score;
-  int alist[200];
+  int maze[MAX_HEIGHT][MAX_WIDTH];
 
-  SEARCHS(){
-    this->score = 0;
-    memset(alist, -1, sizeof(alist));
+  NODE(){
+    this->score = -1;
   }
-} searchs;
+} node;
 
-SEARCHS dp[320][320];
+node dp[320][320];
 
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
@@ -326,7 +325,6 @@ class MazeFixing{
 
     void resetMaze(){
       memcpy(g_maze, g_mazeOrigin, sizeof(g_mazeOrigin));
-      memcpy(g_goodMaze, g_mazeOrigin, sizeof(g_mazeOrigin));
     }
 
     void keepMaze(){
@@ -345,113 +343,51 @@ class MazeFixing{
       init(maze, F);
 
       //solve();
-      //showMaze();
-      int cnt = 0;
-      int tryCount = 0;
-      int notChangeCount = 0;
 
-      const ll startTime = getTime();
-      const ll endTime = startTime + timeLimit;
+      dp[0][0].score = 0;
+      memcpy(dp[0][0].maze, g_maze, sizeof(g_maze));
 
-      double goodScore = 0.0;
-      double bestScore = 0.0;
+      showMaze();
+      int limit = 5;
+      int calcCount = 0;
 
-      double T = 10000.0;
-      double k = 10.0;
-      double alpha = 0.998;
-      currentTime = startTime;
+      for(int t = 0; t < limit; t++){
+        for(int i = 0; i < g_ID; i++){
+          if(dp[t][i].score >= 0){
+            for(int j = 0; j < g_ID; j++){
+              if(i == j) continue;
+              g_fixCount = 0;
+              g_pathLen = 0;
+              memcpy(g_maze, dp[t][i].maze, sizeof(g_maze));
+              EXPLORER *e = getExplorer(j);
 
-      saveMaze();
-      keepMaze();
+			        resetWalkData();
+              realWalk(e->y, e->x, e->curDir, e->curDir, true);
 
-      while(currentTime < endTime){
-        tryCount += 1;
+              double score = calcScore();
+              calcCount += 1;
 
-        int id = xor128()%g_ID;
-        EXPLORER *e = getExplorer(id);
-				resetWalkData();
-        realWalk(e->y, e->x, e->curDir, e->curDir);
-
-        g_fixCount = 0;
-        double score = calcScore();
-
-        if(g_fixCount <= g_FO){
-          if(bestScore < score){
-            g_bestRemainCount = g_FO - g_fixCount;
-            bestScore = score;
-            saveMaze();
-          }
-
-          double rate = exp(-(goodScore-score)/(k*T));
-          //fprintf(stderr,"goodScore = %f, score = %f, rate = %f\n", goodScore, score, rate);
-
-          if(goodScore < score){
-            goodScore = score;
-            keepMaze();
-          }else if(false && T > 0 && (xor128() % 100) < 100.0 * rate){
-            goodScore = score;
-            keepMaze();
-            notChangeCount = 0;
-          }else{
-            notChangeCount += 1;
-
-            if(notChangeCount > 100){
-              notChangeCount = 0;
-              goodScore = 0.0;
-              resetMaze();
-              //randomChange();
-              //fprintf(stderr,"hello\n");
+              if(g_fixCount <= g_FO && dp[t+1][j].score < score){
+                dp[t+1][j].score = score;
+                memcpy(dp[t+1][j].maze, g_maze, sizeof(g_maze));
+              }
             }
           }
         }
-
-        rollback();
-        currentTime = getTime();
-        T *= alpha;
       }
 
-      restore();
-      g_F = g_bestRemainCount;
-      //solve();
+      double bestScore = 0.0;
 
-      /*
-      while(g_F > 0){
-        double maxValue = 0.0;
-        bool update = false;
-        int bestId = -1;
+      for(int i = 0; i < g_ID; i++){
+        double score = dp[limit][i].score;
 
-        for(int id = 0; id < g_ID; id++){
-					if(g_bestIdList[id]) continue;
-
-          EXPLORER *exp = getExplorer(id);
-
-          double value = calcWalkValue(exp->id, exp->y, exp->x, exp->curDir, exp->curDir);
-          //fprintf(stderr,"y = %d, x = %d, d = %d, value = %4.2f\n", exp->y, exp->x, exp->curDir, value);
-
-          if(maxValue < value && !g_bestIdList[id]){
-            maxValue = value;
-            bestId = id;
-            update = true;
-          }
+        if(bestScore < score){
+          bestScore = score;
+          memcpy(g_maze, dp[limit][i].maze, sizeof(g_maze));
         }
-
-        if(!update) break;
-        cnt++;
-
-        //fprintf(stderr,"bestId = %d\n", bestId);
-
-        EXPLORER *exp = getExplorer(bestId);
-
-				resetWalkData();
-        realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
-
-        //fprintf(stderr,"remain f count = %d\n", g_F);
-        g_bestIdList[bestId] = true;
       }
-      */
 
-      fprintf(stderr,"Current = %f\n", calcScore());
-      fprintf(stderr,"tryCount = %d\n", tryCount);
+      fprintf(stderr,"calcCount = %d\n", calcCount);
       fprintf(stderr,"final remain f count = %d\n", g_F);
       createQuery();
       fprintf(stderr,"query size = %lu\n", g_query.size());
@@ -465,7 +401,7 @@ class MazeFixing{
 		}
 
     bool inside(int y, int x){
-      return (0 <= y && 0 <= x && y < g_height && x < g_width && g_maze[y][x] != W);
+      return g_maze[y][x] != W;
     }
 
     bool outside(int y, int x){
@@ -597,7 +533,7 @@ class MazeFixing{
       g_visitedOnePath[ny][nx] = 0;
     }
 
-    void realWalk(int y, int x, int curDir, int origDir){
+    void realWalk(int y, int x, int curDir, int origDir, bool first = false){
       int ny = y + DY[curDir];
       int nx = x + DX[curDir];
 
@@ -627,6 +563,7 @@ class MazeFixing{
 
 						// 探索経路上のセルは変更出来ない
 						if(g_visitedOnePath[dy][dx] && !g_visitedOverall[dy][dx]){
+              g_pathLen += 1;
               g_visitedOverall[dy][dx] = 1;
             }
           }
