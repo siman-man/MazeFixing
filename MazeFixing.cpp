@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <sys/time.h>
 #include <limits.h>
 #include <cassert>
 #include <string>
@@ -19,6 +20,9 @@ using namespace std;
 typedef long long ll;
 
 char const g_cellType[6] = {'W','R','L','U','S','E'};
+
+ll timeLimit = 8000;
+ll currentTime;
 
 const int W = -1;
 const int R = 0;
@@ -50,6 +54,7 @@ int g_width;
 int g_height;
 
 int g_fixCount;
+int g_bestRemainCount;
 int g_pathLen;
 int g_changeValue;
 bool g_success;
@@ -58,6 +63,10 @@ map<int, bool> g_bestIdList;
 int g_maze[MAX_HEIGHT][MAX_WIDTH];
 int g_mazeOrigin[MAX_HEIGHT][MAX_WIDTH];
 int g_tempMaze[MAX_HEIGHT][MAX_WIDTH];
+
+int g_bestMaze[MAX_HEIGHT][MAX_WIDTH];
+int g_goodMaze[MAX_HEIGHT][MAX_WIDTH];
+int g_copyMaze[MAX_HEIGHT][MAX_WIDTH];
 
 // 外周からの距離を求める
 int g_outsideDist[MAX_HEIGHT][MAX_WIDTH];
@@ -70,8 +79,6 @@ int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
 
 int g_changedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_changedCheck[MAX_HEIGHT][MAX_WIDTH];
-int g_changePoint[MAX_HEIGHT][MAX_WIDTH];
-int g_notChangedPath[MAX_HEIGHT][MAX_WIDTH];
 
 unsigned long long xor128(){
   static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
@@ -84,6 +91,13 @@ string int2string(int number){
   stringstream ss; 
   ss << number;
   return ss.str();
+}
+
+ll getTime(){
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  ll result = tv.tv_sec * 1000LL + tv.tv_usec / 1000LL;
+  return result;
 }
 
 typedef struct COORD {
@@ -139,8 +153,6 @@ class MazeFixing{
       g_height = maze.size();
       g_width = maze[0].size();
       memset(g_maze, W, sizeof(g_maze));
-      memset(g_notChangedPath, 0, sizeof(g_notChangedPath));
-      memset(g_changePoint, 0, sizeof(g_changePoint));
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -233,14 +245,42 @@ class MazeFixing{
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
-          if(g_changePoint[y][x]){
-          //if(g_changePoint[y][x]){
+          if(g_maze[y][x] != g_mazeOrigin[y][x]){
             string query = "";
             query += int2string(y) + " ";
             query += int2string(x) + " ";
             query += g_cellType[g_maze[y][x]+1];
             g_query.push_back(query);
             //fprintf(stderr,"%d: query = %s\n", cnt++, query.c_str());
+          }
+        }
+      }
+    }
+
+    void randomChange(){
+      int cnt = g_FO;
+      int list[4] = {S, S, R, L};
+
+      for(int y = 0; y < g_height && cnt > 0; y++){
+        for(int x = 0; x < g_width && cnt > 0; x++){
+          int r = xor128()%100;
+
+          if(r < 20 && g_maze[y][x] == U){
+            g_maze[y][x] = list[xor128()%4];
+            cnt -= 1;
+          }
+        }
+      }
+    }
+
+    void randomUchange(int cnt = 10){
+      for(int y = 0; y < g_height && cnt > 0; y++){
+        for(int x = 0; x < g_width && cnt > 0; x++){
+          int r = xor128()%100;
+
+          if(r < 30 && g_maze[y][x] == U){
+            g_maze[y][x] = S;
+            cnt -= 1;
           }
         }
       }
@@ -299,13 +339,101 @@ class MazeFixing{
       memset(g_changedCheck, 0, sizeof(g_changedCheck));
 		}
 
+    void saveMaze(){
+      memcpy(g_bestMaze, g_maze, sizeof(g_maze));
+    }
+
+    void resetMaze(){
+      memcpy(g_maze, g_mazeOrigin, sizeof(g_mazeOrigin));
+      memcpy(g_goodMaze, g_mazeOrigin, sizeof(g_mazeOrigin));
+    }
+
+    void keepMaze(){
+      memcpy(g_goodMaze, g_maze, sizeof(g_maze));
+    }
+
+    void rollback(){
+      memcpy(g_maze, g_goodMaze, sizeof(g_goodMaze));
+    }
+
+    void restore(){
+      memcpy(g_maze, g_bestMaze, sizeof(g_bestMaze));
+    }
+
     vector<string> improve(vector<string> maze, int F){
       init(maze, F);
 
       //solve();
       //showMaze();
       int cnt = 0;
+      int tryCount = 0;
+      int notChangeCount = 0;
 
+      const ll startTime = getTime();
+      const ll endTime = startTime + timeLimit;
+
+      double goodScore = 0.0;
+      double bestScore = 0.0;
+
+      double T = 10000.0;
+      double k = 10.0;
+      double alpha = 0.998;
+      currentTime = startTime;
+
+      saveMaze();
+      keepMaze();
+
+      while(currentTime < endTime){
+        tryCount += 1;
+
+        int id = xor128()%g_ID;
+        EXPLORER *e = getExplorer(id);
+				resetWalkData();
+        realWalk(e->y, e->x, e->curDir, e->curDir);
+
+        g_fixCount = 0;
+        double score = calcScore();
+
+        if(g_fixCount <= g_FO){
+          if(bestScore < score){
+            g_bestRemainCount = g_FO - g_fixCount;
+            bestScore = score;
+            saveMaze();
+          }
+
+          double rate = exp(-(goodScore-score)/(k*T));
+          //fprintf(stderr,"goodScore = %f, score = %f, rate = %f\n", goodScore, score, rate);
+
+          if(goodScore < score){
+            goodScore = score;
+            keepMaze();
+          }else if(false && T > 0 && (xor128() % 100) < 100.0 * rate){
+            goodScore = score;
+            keepMaze();
+            notChangeCount = 0;
+          }else{
+            notChangeCount += 1;
+
+            if(notChangeCount > 100){
+              notChangeCount = 0;
+              goodScore = 0.0;
+              resetMaze();
+              //randomChange();
+              //fprintf(stderr,"hello\n");
+            }
+          }
+        }
+
+        rollback();
+        currentTime = getTime();
+        T *= alpha;
+      }
+
+      restore();
+      g_F = g_bestRemainCount;
+      //solve();
+
+      /*
       while(g_F > 0){
         double maxValue = 0.0;
         bool update = false;
@@ -329,18 +457,20 @@ class MazeFixing{
         if(!update) break;
         cnt++;
 
-        fprintf(stderr,"bestId = %d\n", bestId);
+        //fprintf(stderr,"bestId = %d\n", bestId);
 
         EXPLORER *exp = getExplorer(bestId);
 
 				resetWalkData();
         realWalk(exp->y, exp->x, exp->curDir, exp->curDir);
 
-        fprintf(stderr,"remain f count = %d\n", g_F);
+        //fprintf(stderr,"remain f count = %d\n", g_F);
         g_bestIdList[bestId] = true;
       }
+      */
 
       fprintf(stderr,"Current = %f\n", calcScore());
+      fprintf(stderr,"tryCount = %d\n", tryCount);
       fprintf(stderr,"final remain f count = %d\n", g_F);
       createQuery();
       fprintf(stderr,"query size = %lu\n", g_query.size());
@@ -349,8 +479,8 @@ class MazeFixing{
     }
 
 		// 経路として確定している部分は変更が出来ない
-		bool canChangedCell(int y, int x){
-			return (!g_visitedOverall[y][x] && !g_notChangedPath[y][x]);
+		bool canChangeCell(int y, int x){
+			return !g_visitedOverall[y][x];
 		}
 
     bool inside(int y, int x){
@@ -447,7 +577,7 @@ class MazeFixing{
           //fprintf(stderr,"y = %d, x = %d, change R -> L\n", ny, nx)
 					
 					// セルが変更可能であれば修正する
-          if(canChangedCell(ny,nx)){
+          if(canChangeCell(ny,nx)){
             g_changedOnePath[ny][nx] = 1;
 						g_tempMaze[ny][nx] = L;
             walk(ny, nx, (curDir+3)%4, origDir);
@@ -458,7 +588,7 @@ class MazeFixing{
       }else if(type == U){
         //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
 				
-        if(canChangedCell(ny,nx)){
+        if(canChangeCell(ny,nx)){
           g_changedOnePath[ny][nx] = 1;
 					g_tempMaze[ny][nx] = S;
           walk(ny, nx, curDir, origDir);
@@ -467,7 +597,7 @@ class MazeFixing{
         if((curDir+3)%4 == (origDir+2)%4){
           //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
 					
-          if(canChangedCell(ny,nx)){
+          if(canChangeCell(ny,nx)){
             g_changedOnePath[ny][nx] = 1;
 						g_tempMaze[ny][nx] = R;
             walk(ny, nx, (curDir+1)%4, origDir);
@@ -507,20 +637,16 @@ class MazeFixing{
           	if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
             	//fprintf(stderr,"y = %d, x = %d, change %c -> %c\n", dy, dx, g_cellType[g_maze[dy][dx]+1], g_cellType[g_tempMaze[dy][dx]+1]);
 								
-							assert(g_maze[dy][dx] == g_mazeOrigin[dy][dx]);
 							assert(g_maze[dy][dx] != g_tempMaze[dy][dx]);
-							assert(g_F > 0);
 
 							// 変更を保存していたものを実際の盤面に反映させる
               g_maze[dy][dx] = g_tempMaze[dy][dx];
-              g_F -= 1;
-							g_changePoint[dy][dx] = 1;
 							g_changedCheck[dy][dx] = 1;
             }
 
 						// 探索経路上のセルは変更出来ない
-						if(g_visitedOnePath[dy][dx] && !g_notChangedPath[dy][dx]){
-           		g_notChangedPath[dy][dx] = 1;
+						if(g_visitedOnePath[dy][dx] && !g_visitedOverall[dy][dx]){
+              g_visitedOverall[dy][dx] = 1;
             }
           }
         }
@@ -529,7 +655,7 @@ class MazeFixing{
       }else if(type == R){
         if((curDir+1)%4 == (origDir+2)%4){
           
-          if(canChangedCell(ny,nx)){
+          if(canChangeCell(ny,nx)){
           	//fprintf(stderr,"y = %d, x = %d, change R -> L\n", ny, nx);
             g_changedOnePath[ny][nx] = 1;
             g_tempMaze[ny][nx] = L;
@@ -540,7 +666,7 @@ class MazeFixing{
         }
       }else if(type == U){
         
-        	if(canChangedCell(ny,nx)){
+        	if(canChangeCell(ny,nx)){
         		//fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
          		g_changedOnePath[ny][nx] = 1;
           	g_tempMaze[ny][nx] = S;
@@ -549,7 +675,7 @@ class MazeFixing{
       }else if(type == L){
         if((curDir+3)%4 == (origDir+2)%4){
           
-         	if(canChangedCell(ny,nx)){
+         	if(canChangeCell(ny,nx)){
           	//fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
             g_changedOnePath[ny][nx] = 1;
             g_tempMaze[ny][nx] = R;
@@ -627,12 +753,15 @@ class MazeFixing{
           if(inside(y,x) && g_visitedOverall[y][x]){
             nvis++;
           }
+          if(g_maze[y][x] != g_mazeOrigin[y][x]){
+            g_fixCount += 1;
+          }
         }
       }
 
 
-      fprintf(stderr,"%d/%d\n", nvis, g_N);
-      return nvis / (double)g_N;
+      //fprintf(stderr,"%d/%d\n", nvis, g_N);
+      return nvis;
     }
 
     void search(int curY, int curX, int curDir){
@@ -692,6 +821,7 @@ int main(){
   }
   cin >> f;
   MazeFixing mf;
+  timeLimit = 1000;
   vector<string> ret = mf.improve(maze, f);
   cout << ret.size() << endl;
   for(int i = 0; i < ret.size(); i++){
