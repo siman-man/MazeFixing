@@ -51,6 +51,7 @@ int g_height;
 
 int g_fixCount;
 int g_pathLen;
+int g_changeValue;
 bool g_success;
 map<int, bool> g_bestIdList;
 
@@ -246,6 +247,7 @@ class MazeFixing{
     }
 
     void solve(){
+			/*
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && g_F > 0){
@@ -254,16 +256,17 @@ class MazeFixing{
           }
         }
       }
+			*/
 
-			/*
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
-          if(inside(y,x) && g_maze[y][x] == U && f > 0){
+          if(inside(y,x) && g_maze[y][x] == U && g_F > 0){
             changeBest(y,x);
             g_F--;
           }
         }
       }
+			/*
 
       calcScore();
 
@@ -373,6 +376,7 @@ class MazeFixing{
     double calcWalkValue(int id, int y, int x, int curDir, int origDir){
       g_fixCount = 0;
       g_pathLen = 0;
+			g_changeValue = 0;
       g_success = false;
 
 			resetWalkData();
@@ -386,8 +390,11 @@ class MazeFixing{
 			}else if(!g_success){
         return g_fixCount;
       }else{
-        return 10 * g_pathLen;
-        //return (g_pathLen) / (double)(g_fixCount);
+				if(g_FO < 1000){
+        	return (g_pathLen) / (double)(g_fixCount);
+				}else{
+        	return g_pathLen;
+				}
       }
     }
 
@@ -418,7 +425,11 @@ class MazeFixing{
           for(int dx = 0; dx < g_width; dx++){
 						// 今回生成した経路で変更が確定していない部分があれば追加する
           	if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
-							g_fixCount += 1;
+							if(g_maze[dy][dx] != U){
+								g_fixCount += 1;
+							}else{
+								g_fixCount += 1;
+							}
 							g_changedCheck[dy][dx] = 1;
             }
 						// 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
