@@ -139,6 +139,18 @@ typedef struct PATH {
   }
 } path;
 
+typedef struct SEARCHS{
+  int score;
+  int alist[200];
+
+  SEARCHS(){
+    this->score = 0;
+    memset(alist, -1, sizeof(alist));
+  }
+} searchs;
+
+SEARCHS dp[320][320];
+
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
 
@@ -287,17 +299,6 @@ class MazeFixing{
     }
 
     void solve(){
-			/*
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
-          if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && outside(y,x) && g_F > 0){
-            g_maze[y][x] = S;
-            g_F--;
-          }
-        }
-      }
-			*/
-
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(inside(y,x) && g_maze[y][x] == U && g_F > 0){
@@ -306,26 +307,6 @@ class MazeFixing{
           }
         }
       }
-			/*
-
-      calcScore();
-
-      int dist = 2;
-      while(f > 0){
-        for(int y = 0; y < g_height && f > 0; y++){
-          for(int x = 0; x < g_width && f > 0; x++){
-            if(g_maze[y][x] != W && g_maze[y][x] != E && g_maze[y][x] != S && g_outsideDist[y][x] == dist){
-              g_maze[y][x] = S;
-            	g_F--;
-              calcScore();
-            }
-          }
-        }
-
-        dist += 2;
-        if(dist > g_height/2) break;
-      }
-			*/
     }
 
 		void resetWalkData(){
