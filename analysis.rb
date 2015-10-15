@@ -15,7 +15,8 @@ class Summary
 
         if line =~ /Score/
           score = line.chomp.split(' ')[2].to_f
-          if score == -1
+					puts score
+          if score == 0
             sum = Float::INFINITY
           end
 
