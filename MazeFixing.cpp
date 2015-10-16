@@ -71,6 +71,8 @@ int g_visitedOnePath[MAX_HEIGHT][MAX_WIDTH];
 // 探索済みの箇所についてチェックをつける
 int g_visitedOverall[MAX_HEIGHT][MAX_WIDTH];
 
+int g_visitedCount[MAX_HEIGHT][MAX_WIDTH];
+
 int g_changedOnePath[MAX_HEIGHT][MAX_WIDTH];
 int g_changedCheck[MAX_HEIGHT][MAX_WIDTH];
 int g_changePoint[MAX_HEIGHT][MAX_WIDTH];
@@ -318,6 +320,8 @@ class MazeFixing{
         bool update = false;
         int bestId = -1;
 
+				calcScore();
+
         for(int id = 0; id < g_ID; id++){
 					if(g_bestIdList[id]) continue;
 
@@ -432,6 +436,7 @@ class MazeFixing{
         for(int dy = 0; dy < g_height; dy++){
           for(int dx = 0; dx < g_width; dx++){
 						int odist = g_outsideDist[dy][dx];
+						int vCnt = g_visitedCount[dy][dx];
 						// 今回生成した経路で変更が確定していない部分があれば追加する
           	if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
 							if(g_maze[dy][dx] != U){
@@ -449,7 +454,11 @@ class MazeFixing{
             }
 						// 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
 						if(g_visitedOnePath[dy][dx] && !g_visitedOverall[dy][dx]){
-							g_pathLen += odist;
+							if(vCnt < 1){
+								g_pathLen += 1;
+							}else{
+								g_pathLen += 0;
+							}
 							g_visitedOverall[dy][dx] = 1;	
 						}
 						// 探索経路上のセルは変更出来ない
@@ -538,6 +547,7 @@ class MazeFixing{
     double calcScore(){
       memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
+			memset(g_visitedCount, 0, sizeof(g_visitedCount));
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -586,6 +596,9 @@ class MazeFixing{
       if(type == W){
         for(int y = 0; y < g_height; y++){
           for(int x = 0; x < g_width; x++){
+						if(g_visitedOnePath[y][x]){
+							g_visitedCount[y][x] += 1;
+						}
             g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
           }
         }
