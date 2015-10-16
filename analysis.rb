@@ -3,6 +3,7 @@ class Summary
     sum = 0 
     min_list = []
     cnt = 0
+		seed = 1
     File.open(Dir::pwd + '/result.txt', 'r') do |file|
       file.readlines.each do |line|
         if line =~ /N =/
@@ -15,12 +16,14 @@ class Summary
 
         if line =~ /Score/
           score = line.chomp.split(' ')[2].to_f
+					puts "#{seed}: #{score}"
           if score == 0
             sum = Float::INFINITY
           end
 
           sum += score
           cnt += 1
+					seed += 1
         end 
       end 
     end 
