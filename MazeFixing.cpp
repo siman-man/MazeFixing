@@ -37,6 +37,9 @@ const int MAX_HEIGHT = 80;
 int g_F;
 int g_FO;
 
+int g_RCount;
+int g_LCount;
+
 // 探索者のID
 int g_ID;
 
@@ -135,6 +138,8 @@ class MazeFixing{
       g_F = F;
       g_FO = F;
       g_ID = 0;
+			g_LCount = 0;
+			g_RCount = 0;
       g_N = 0;
       g_height = maze.size();
       g_width = maze[0].size();
@@ -148,8 +153,10 @@ class MazeFixing{
 
           if(type == 'R'){
             g_maze[y][x] = R;
+						g_RCount += 1;
           }else if(type == 'L'){
             g_maze[y][x] = L;
+						g_LCount += 1;
           }else if(type == 'U'){
             g_maze[y][x] = U;
           }else if(type == 'S'){
