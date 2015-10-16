@@ -405,6 +405,7 @@ class MazeFixing{
           	if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
 							if(g_maze[dy][dx] != U){
 								g_fixCount += 1;
+								g_pathLen -= 1;
 							}else{
 								g_fixCount += 1;
 							}
