@@ -24,6 +24,8 @@ char const g_cellType[6] = {'W','R','U','L','S','E'};
 ll timeLimit = 8000;
 ll currentTime;
 
+bool g_debug;
+
 const int W = 0;
 const int R = 1;
 const int U = 2;
@@ -52,6 +54,12 @@ int g_width;
 
 // 迷路の縦幅
 int g_height;
+
+int g_RCount;
+int g_LCount;
+int g_UCount;
+int g_ECount;
+int g_SCount;
 
 int g_fixCount;
 int g_bestRemainCount;
@@ -162,6 +170,11 @@ class MazeFixing{
       g_FO = F;
       g_ID = 0;
       g_N = 0;
+      g_RCount = 0;
+      g_LCount = 0;
+      g_ECount = 0;
+      g_SCount = 0;
+      g_UCount = 0;
       g_height = maze.size();
       g_width = maze[0].size();
       memset(g_maze, W, sizeof(g_maze));
@@ -172,14 +185,19 @@ class MazeFixing{
 
           if(type == 'R'){
             g_maze[y][x] = R;
+            g_RCount += 1;
           }else if(type == 'L'){
             g_maze[y][x] = L;
+            g_LCount += 1;
           }else if(type == 'U'){
             g_maze[y][x] = U;
+            g_UCount += 1;
           }else if(type == 'S'){
             g_maze[y][x] = S;
+            g_SCount += 1;
           }else if(type == 'E'){
             g_maze[y][x] = E;
+            g_ECount += 1;
           }else{
             g_maze[y][x] = W;
           }
@@ -213,6 +231,11 @@ class MazeFixing{
             }
           }
         }
+      }
+
+      if(g_debug){
+        fprintf(stderr,"R: %d, L: %d, S: %d, U: %d, E: %d\n", g_RCount, g_LCount, g_SCount, g_UCount, g_ECount);
+        fprintf(stderr,"change count = %d\n", g_N - (g_SCount + g_ECount));
       }
 
       memcpy(g_mazeOrigin, g_maze, sizeof(g_maze));
@@ -341,6 +364,16 @@ class MazeFixing{
       memcpy(g_maze, g_bestMaze, sizeof(g_bestMaze));
     }
 
+    void fillMaze(int type){
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          if(g_maze[y][x] != W && g_maze[y][x] != E){
+            g_maze[y][x] = type;
+          }
+        }
+      }
+    }
+
     vector<string> improve(vector<string> maze, int F){
       init(maze, F);
 
@@ -363,8 +396,9 @@ class MazeFixing{
 
       saveMaze();
       keepMaze();
+      fillMaze(S);
 
-      while(currentTime < endTime){
+      while(false && currentTime < endTime){
         tryCount += 1;
 
         int id = xor128()%g_ID;
@@ -386,7 +420,7 @@ class MazeFixing{
         }
 
         double rate = exp(-(goodScore-score)/(k*T));
-        fprintf(stderr,"goodScore = %f, score = %f, rate = %f\n", goodScore, score, rate);
+        //fprintf(stderr,"goodScore = %f, score = %f, rate = %f\n", goodScore, score, rate);
 
         if(goodScore < score){
           goodScore = score;
@@ -412,7 +446,7 @@ class MazeFixing{
         T *= alpha;
       }
 
-      restore();
+      //restore();
       g_F = g_bestRemainCount;
 
       fprintf(stderr,"Current = %f\n", calcScore());
@@ -679,6 +713,7 @@ int main(){
   }
   cin >> f;
   MazeFixing mf;
+  g_debug = true;
   timeLimit = 1000;
   vector<string> ret = mf.improve(maze, f);
   cout << ret.size() << endl;
