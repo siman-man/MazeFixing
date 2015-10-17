@@ -57,13 +57,15 @@ int g_width;
 // 迷路の縦幅
 int g_height;
 
+bool g_best;
+
 int g_RCount;
 int g_LCount;
 int g_UCount;
 int g_ECount;
 int g_SCount;
 
-int g_pathLen;
+int g_vPathLen;
 int g_changeValue;
 bool g_success;
 map<int, bool> g_bestIdList;
@@ -136,49 +138,28 @@ typedef struct EXPLORER {
   }
 } explorer;
 
-typedef struct PATH {
-  int pathLen;
-  int fixCount;
-  vector<coord> pathList;
-
-  PATH(){
-    this->pathLen = 0;
-    this->fixCount = 0;
-  }
-} path;
-
-typedef struct SEARCHS{
-  int score;
-  int alist[200];
-
-  SEARCHS(){
-    this->score = 0;
-    memset(alist, -1, sizeof(alist));
-  }
-} searchs;
-
 typedef struct EVAL{
   int pathLen;
+  int vPathLen;
   int unreachedCellCount;
   int fixCount;
 
   EVAL(){
     this->pathLen = 0;
     this->fixCount = 0;
+    this->vPathLen = 0;
     this->unreachedCellCount = 0;
   }
 
   double score(){
     if(fixCount > g_F){
-      return fixCount;
+      return 0.1 * vPathLen - 10 * fixCount;
     }else{
-      return pathLen;
+      return 10 * pathLen;
     }
   }
 } eval;
 
-
-SEARCHS dp[320][320];
 
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
@@ -227,7 +208,7 @@ class MazeFixing{
           if(type != '.'){
             g_N++;
 
-            if(type != 'E'){
+            if(type != 'S' && type != 'E'){
               coord c(y,x);
               g_cellCoordList.push_back(c);
               g_cellCount += 1;
@@ -316,8 +297,8 @@ class MazeFixing{
     }
 
     void resetMaze(){
-      memcpy(g_maze, g_mazeOrigin, sizeof(g_mazeOrigin));
-      memcpy(g_goodMaze, g_mazeOrigin, sizeof(g_mazeOrigin));
+      fillMaze(S);
+      keepMaze();
     }
 
     void keepMaze(){
@@ -351,29 +332,44 @@ class MazeFixing{
       const ll startTime = getTime();
       const ll endTime = startTime + timeLimit;
 
-      double goodScore = -10000.0;
-      double bestScore = -10000.0;
+      double goodScore = INT_MIN;
+      double bestScore = INT_MIN;
 
-      double T = 100.0;
+      g_best = false;
+
+      double T = 10000.0;
       double k = 1.0;
       double alpha = 0.999;
+      int updateCount = 0;
       currentTime = startTime;
 
+      fillMaze(S);
       saveMaze();
       keepMaze();
-      fillMaze(S);
 
       while(currentTime < endTime){
         tryCount += 1;
-
         coord c = g_cellCoordList[xor128()%g_cellCount];
-        changeCell(c.y, c.x); 
+        coord c2 = g_cellCoordList[xor128()%g_cellCount];
+
+        if(g_best){
+          changeCell(c.y, c.x); 
+          changeCell(c2.y, c2.x); 
+        }else{
+          while(g_maze[c.y][c.x] == g_mazeOrigin[c.y][c.x]){
+            c = g_cellCoordList[xor128()%g_cellCount];
+          }
+          restoreCell(c.y, c.x);
+        }
 
         resetMazeData();
         eval e = calcScore();
 
         if(bestScore < e.score() && e.fixCount <= g_F){
+          updateCount += 1;
+          fprintf(stderr,"%d: save best (%d/%d) - %4.2f\n", updateCount, e.pathLen, g_N, (e.pathLen/(double)g_N) * 100.0);
           bestScore = e.score();
+          g_best = true;
           saveMaze();
         }
 
@@ -389,11 +385,10 @@ class MazeFixing{
         }else{
           notChangeCount += 1;
 
-          if(notChangeCount > 100){
+          if(notChangeCount > 200){
             notChangeCount = 0;
             goodScore = 0.0;
             resetMaze();
-            fprintf(stderr,"hello\n");
           }
         }
 
@@ -432,6 +427,13 @@ class MazeFixing{
       }else{
         g_maze[y][x] = g_mazeOrigin[y][x];
       }
+    }
+
+    /*
+     * セルを元の状態に戻す
+     */
+    void restoreCell(int y, int x){
+      g_maze[y][x] = g_mazeOrigin[y][x];
     }
 
     bool inside(int y, int x){
@@ -489,23 +491,14 @@ class MazeFixing{
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
       eval e;
 
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
-          int type = g_maze[y][x];
+      g_vPathLen = 0;
 
-          if(type == W && !g_visitedOnePath[y][x]){
-            for(int i = 0; i < 4; i++){
-              int ny = y + DY[i];
-              int nx = x + DX[i];
-
-              if(inside(ny, nx)){
-                search(y, x, i);
-              }
-            }
-          }
-        }
+      for(int id = 0; id < g_ID; id++){
+        EXPLORER *exp = getExplorer(id);
+        search(exp->y, exp->x, exp->curDir);
       }
 
+      e.vPathLen = g_vPathLen;
       int nvis = 0;
 
       for(int y = 0; y < g_height; y++){
@@ -532,6 +525,7 @@ class MazeFixing{
         return;
       }
 
+      g_vPathLen += 1;
       g_visitedOnePath[ny][nx] = 1;
 
       int type = g_maze[ny][nx];
@@ -597,7 +591,7 @@ int main(){
   cin >> f;
   MazeFixing mf;
   g_debug = true;
-  timeLimit = 1000;
+  timeLimit = 6000000;
   vector<string> ret = mf.improve(maze, f);
   cout << ret.size() << endl;
   for(int i = 0; i < ret.size(); i++){cout << ret[i] << endl;}
