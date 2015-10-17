@@ -210,7 +210,6 @@ class MazeFixing{
         }
       }
 
-
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           if(g_maze[y][x] != W){
