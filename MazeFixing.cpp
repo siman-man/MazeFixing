@@ -41,7 +41,6 @@ const int MAX_HEIGHT = 80;
 
 // 修正可能なセルの個数
 int g_F;
-int g_FO;
 
 // 探索者のID
 int g_ID;
@@ -64,7 +63,6 @@ int g_UCount;
 int g_ECount;
 int g_SCount;
 
-int g_fixCount;
 int g_pathLen;
 int g_changeValue;
 bool g_success;
@@ -159,17 +157,38 @@ typedef struct SEARCHS{
   }
 } searchs;
 
+typedef struct EVAL{
+  int pathLen;
+  int unreachedCellCount;
+  int fixCount;
+
+  EVAL(){
+    this->pathLen = 0;
+    this->fixCount = 0;
+    this->unreachedCellCount = 0;
+  }
+
+  double score(){
+    if(fixCount > g_F){
+      return fixCount;
+    }else{
+      return pathLen;
+    }
+  }
+} eval;
+
+
 SEARCHS dp[320][320];
 
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
+vector<coord> g_cellCoordList;
 
 class MazeFixing{
   public:
 
     void init(vector<string> maze, int F){
       g_F = F;
-      g_FO = F;
       g_ID = 0;
       g_N = 0;
       g_cellCount = 0;
@@ -209,6 +228,8 @@ class MazeFixing{
             g_N++;
 
             if(type != 'E'){
+              coord c(y,x);
+              g_cellCoordList.push_back(c);
               g_cellCount += 1;
             }
           }
@@ -261,17 +282,11 @@ class MazeFixing{
       return &g_explorerList[id];
     }
 
-    void changeBest(int y, int x){
-      int bestType = 0;
-
-      bestType = S;
-
-      g_maze[y][x] = bestType;
-    }
-
+    /*
+     * クエリの作成
+     */
     void createQuery(){
       fprintf(stderr,"createQuery =>\n");
-      int cnt = 0;
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -330,7 +345,6 @@ class MazeFixing{
     vector<string> improve(vector<string> maze, int F){
       init(maze, F);
 
-      int cnt = 0;
       int tryCount = 0;
       int notChangeCount = 0;
 
@@ -341,42 +355,35 @@ class MazeFixing{
       double bestScore = -10000.0;
 
       double T = 100.0;
-      double k = 0.5;
+      double k = 1.0;
       double alpha = 0.999;
       currentTime = startTime;
 
       saveMaze();
       keepMaze();
       fillMaze(S);
-      //showMaze();
 
       while(currentTime < endTime){
         tryCount += 1;
 
-        int id = xor128()%g_ID;
-        EXPLORER *e = getExplorer(id);
+        coord c = g_cellCoordList[xor128()%g_cellCount];
+        changeCell(c.y, c.x); 
+
         resetMazeData();
+        eval e = calcScore();
 
-        g_fixCount = 0;
-        double score = calcScore();
-
-        if(g_fixCount > g_FO){
-          score -= 100000;
-        }
-
-        if(bestScore < score){
-          bestScore = score;
+        if(bestScore < e.score() && e.fixCount <= g_F){
+          bestScore = e.score();
           saveMaze();
         }
 
-        double rate = exp(-(goodScore-score)/(k*T));
-        //fprintf(stderr,"goodScore = %f, score = %f, rate = %f\n", goodScore, score, rate);
+        double rate = exp(-(goodScore-e.score())/(k*T));
 
-        if(goodScore < score){
-          goodScore = score;
+        if(goodScore < e.score()){
+          goodScore = e.score();
           keepMaze();
         }else if(T > 0 && (xor128() % 100) < 100.0 * rate){
-          goodScore = score;
+          goodScore = e.score();
           keepMaze();
           notChangeCount = 0;
         }else{
@@ -386,7 +393,7 @@ class MazeFixing{
             notChangeCount = 0;
             goodScore = 0.0;
             resetMaze();
-            //fprintf(stderr,"hello\n");
+            fprintf(stderr,"hello\n");
           }
         }
 
@@ -395,11 +402,12 @@ class MazeFixing{
         T *= alpha;
       }
 
-      //restore();
+      restore();
+      eval e = calcScore();
 
-      fprintf(stderr,"Current = %f\n", calcScore());
+      fprintf(stderr,"Current = %d\n", e.pathLen);
       fprintf(stderr,"tryCount = %d\n", tryCount);
-      fprintf(stderr,"final remain f count = %d\n", g_F);
+      fprintf(stderr,"final remain f count = %d\n", g_F - e.fixCount);
       createQuery();
       fprintf(stderr,"query size = %lu\n", g_query.size());
 
@@ -412,8 +420,18 @@ class MazeFixing{
     }
 
     // セルを変更する
-    void changeCell(int y, int x, int type){
-      g_maze[y][x] = type;
+    // 元の盤面と一緒ならばランダムなセルに変更
+    // 元の盤面と違う場合は元に戻す
+    void changeCell(int y, int x){
+      int cList[3] = {S, R, L};
+      g_tempMaze[y][x] = g_maze[y][x];
+
+      if(g_maze[y][x] == g_mazeOrigin[y][x]){
+        int type = cList[xor128()%3];
+        g_maze[y][x] = type;
+      }else{
+        g_maze[y][x] = g_mazeOrigin[y][x];
+      }
     }
 
     bool inside(int y, int x){
@@ -437,28 +455,28 @@ class MazeFixing{
     }
 
     int calcOutSideDist(int y, int x){
-      queue<COORD> que;
+      queue<coord> que;
       que.push(coord(y,x,0));
       map<int, bool> checkList;
 
       while(!que.empty()){
-        COORD coord = que.front(); que.pop();
+        coord c = que.front(); que.pop();
 
-        int z = coord.y * g_width + coord.x;
+        int z = c.y * g_width + c.x;
         if(checkList[z]) continue;
         checkList[z] = true;
 
-        if(outside(coord.y, coord.x)){
-          return coord.dist;
+        if(outside(c.y, c.x)){
+          return c.dist;
         }
 
         for(int i = 0; i < 4; i++){
-          int ny = coord.y + DY[i];
-          int nx = coord.x + DX[i];
+          int ny = c.y + DY[i];
+          int nx = c.x + DX[i];
           int nz = ny * g_width + nx;
 
           if(!checkList[nz]){
-            que.push(COORD(ny,nx,coord.dist+1));
+            que.push(coord(ny,nx,c.dist+1));
           }
         }
       }
@@ -466,9 +484,10 @@ class MazeFixing{
       return 0;
     }
 
-    double calcScore(){
+    eval calcScore(){
       memset(g_visitedOnePath, 0, sizeof(g_visitedOnePath));
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
+      eval e;
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -493,15 +512,16 @@ class MazeFixing{
         for(int x = 0; x < g_width; x++){
           if(inside(y,x) && g_visitedOverall[y][x]){
             nvis++;
+            e.pathLen += 1;
           }
           if(g_maze[y][x] != g_mazeOrigin[y][x]){
-            g_fixCount += 1;
+            e.fixCount += 1;
           }
         }
       }
 
       //fprintf(stderr,"%d/%d\n", nvis, g_N);
-      return nvis;
+      return e;
     }
 
     void search(int curY, int curX, int curDir){
@@ -519,6 +539,9 @@ class MazeFixing{
       if(type == W){
         for(int y = 0; y < g_height; y++){
           for(int x = 0; x < g_width; x++){
+            if(g_visitedOnePath[y][x]){
+              g_visitedCount[y][x] += 1;
+            }
             g_visitedOverall[y][x] = g_visitedOverall[y][x] | g_visitedOnePath[y][x];
           }
         }
@@ -527,7 +550,7 @@ class MazeFixing{
       }else if(type == R){
         search(ny, nx, turnRight(curDir));
       }else if(type == U){
-        search(ny, nx, (curDir+2)%4);
+        search(ny, nx, uTurn(curDir));
       }else if(type == L){
         search(ny, nx, turnLeft(curDir));
       }else if(type == E){
@@ -545,6 +568,10 @@ class MazeFixing{
 
     int turnLeft(int curDir){
       return (curDir+3)%4;
+    }
+
+    int uTurn(int curDir){
+      return (curDir+2)%4;
     }
 
     void showMaze(){
