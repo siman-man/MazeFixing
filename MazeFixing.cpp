@@ -21,7 +21,7 @@ typedef long long ll;
 
 char const g_cellType[6] = {'W','R','U','L','S','E'};
 
-ll timeLimit = 8500;
+ll timeLimit = 8000;
 
 ll getTime() {
   struct timeval tv;
@@ -473,7 +473,6 @@ class MazeFixing{
         fprintf(stderr,"tryCount = %d\n", tryCount);
         fprintf(stderr,"Current = %d\n", e.pathLen);
         fprintf(stderr,"final remain f count = %d\n", g_F);
-        fprintf(stderr,"Change S count = %d\n", g_CSCount);
         fprintf(stderr,"Change R count = %d\n", g_CRCount);
         fprintf(stderr,"Change L count = %d\n", g_CLCount);
         fprintf(stderr,"Change U count = %d\n", g_CUCount);
@@ -522,23 +521,15 @@ class MazeFixing{
       return false;
     }
 
-    double calcWalkValue(int id, int y, int x, int curDir, int origDir, bool reverse = false, bool first = false){
-      if(!reverse){
-        g_fixCount = 0;
-        g_pathLen = 0;
-        g_changeValue = 0;
-        g_success = false;
+    double calcWalkValue(int id, int y, int x, int curDir, int origDir){
+      g_fixCount = 0;
+      g_pathLen = 0;
+      g_changeValue = 0;
+      g_success = false;
 
-        resetMazeData();
-      }
+      resetMazeData();
 
-      if(reverse){
-        reverseWalk(y, x, curDir, origDir, 0);
-      }else{
-        walk(y, x, curDir, origDir, 0);
-      }
-
-      if(first) return 0.0;
+      walk(y, x, curDir, origDir, 0);
 
       //fprintf(stderr,"id = %d, fixCount = %d, pathLen = %d\n", id, g_fixCount, g_pathLen);
 
@@ -567,14 +558,11 @@ class MazeFixing{
         return;
       }
 
-      int type = g_maze[ny][nx];
-
       /**
        * 今回の探索で既に書き換えが発生していた場合はそれに置き換える
        */
-      if(g_changedCheck[ny][nx]){
-        type = g_tempMaze[ny][nx];
-      }
+      int type = (g_changedCheck[ny][nx])? g_tempMaze[ny][nx] : g_maze[ny][nx];
+
 
       g_visitedOnePath[ny][nx] = 1;
 
@@ -584,8 +572,8 @@ class MazeFixing{
         // 経路作成に成功
         g_success = true;
 
-        for(int dy = 0; dy < g_height; dy++){
-          for(int dx = 0; dx < g_width; dx++){
+        for(int dy = 0; dy < g_height; ++dy){
+          for(int dx = 0; dx < g_width; ++dx){
             int vCnt = g_visitedCount[dy][dx];
             // 今回生成した経路で変更が確定していない部分があれば追加する
             if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
@@ -601,27 +589,13 @@ class MazeFixing{
               g_changedCheck[dy][dx] = 1;
 
               if(real){
-                if(g_maze[dy][dx] == S){
-                  g_CSCount += 1;
-                }else if(g_maze[dy][dx] == R){
-                  g_CRCount += 1;
-                }else if(g_maze[dy][dx] == L){
-                  g_CLCount += 1;
-                }else if(g_maze[dy][dx] == U){
-                  g_CUCount += 1;
-                }
-
                 g_maze[dy][dx] = g_tempMaze[dy][dx];
                 g_F -= 1;
               }
             }
             // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
             if(g_visitedOnePath[dy][dx] && !g_visitedOverall[dy][dx]){
-              if(vCnt < 1){
-                g_pathLen += 1;
-              }else{
-                g_pathLen += 0;
-              }
+              g_pathLen += (vCnt < 1);
               g_visitedOverall[dy][dx] = 1;	
             }
             // 探索経路上のセルは変更出来ない
@@ -685,152 +659,6 @@ class MazeFixing{
           }
         }else{
           walk(ny, nx, turnLeft(curDir), origDir, fixCount, real);
-        }
-      }else if(type == E){
-        for(int i = 0; i < 4; i++){
-          if(i != 2){
-            walk(ny, nx, (curDir+i)%4, (curDir+i)%4, fixCount, real);
-          }
-        }
-      }
-
-      g_visitedOnePath[ny][nx] = 0;
-    }
-
-    void reverseWalk(int y, int x, int curDir, int origDir, int fixCount, bool real = false){
-      int ny = y + DY[curDir];
-      int nx = x + DX[curDir];
-
-      int sy = ny + DY[curDir];
-      int sx = nx + DX[curDir];
-      int ly = ny + DY[(curDir+1)%4];
-      int lx = nx + DX[(curDir+1)%4];
-      int ry = ny + DY[(curDir+3)%4];
-      int rx = nx + DX[(curDir+3)%4];
-
-      // 既に探索されていた場合は探索を抜ける
-      if(g_visitedOnePath[ny][nx]){
-        return;
-      }
-
-      int type = g_maze[ny][nx];
-
-      /**
-       * 今回の探索で既に書き換えが発生していた場合はそれに置き換える
-       */
-      if(g_changedCheck[ny][nx]){
-        type = g_tempMaze[ny][nx];
-      }
-
-      g_visitedOnePath[ny][nx] = 1;
-
-      //fprintf(stderr,"y = %d, x = %d, type = %c\n", ny, nx, g_cellType[type]);
-
-      if(type == W){
-        // 経路作成に成功
-        g_success = true;
-
-        for(int dy = 0; dy < g_height; dy++){
-          for(int dx = 0; dx < g_width; dx++){
-            int vCnt = g_visitedCount[dy][dx];
-            // 今回生成した経路で変更が確定していない部分があれば追加する
-            if(g_visitedOnePath[dy][dx] && g_changedOnePath[dy][dx] && !g_changedCheck[dy][dx]){
-              if(g_maze[dy][dx] != U){
-                g_fixCount += 1;
-              }else{
-                g_changeValue += 1;
-                g_fixCount += 1;
-              }
-              if(vCnt < 2){
-                g_changeValue += 1;
-              }
-              g_changedCheck[dy][dx] = 1;
-
-              if(real){
-                if(g_maze[dy][dx] == S){
-                  g_CSCount += 1;
-                }else if(g_maze[dy][dx] == R){
-                  g_CRCount += 1;
-                }else if(g_maze[dy][dx] == L){
-                  g_CLCount += 1;
-                }else if(g_maze[dy][dx] == U){
-                  g_CUCount += 1;
-                }
-
-                g_maze[dy][dx] = g_tempMaze[dy][dx];
-                g_F -= 1;
-              }
-            }
-            // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
-            if(g_visitedOnePath[dy][dx] && !g_visitedOverall[dy][dx]){
-              if(vCnt < 1){
-                g_pathLen += 1;
-              }else{
-                g_pathLen += 0;
-              }
-              g_visitedOverall[dy][dx] = 1;	
-            }
-            // 探索経路上のセルは変更出来ない
-            if(real && g_visitedOnePath[dy][dx] && !g_notChangedPath[dy][dx]){
-              g_notChangedPath[dy][dx] = 1;
-            }
-          }
-        }
-      }else if(type == S){
-        walk(ny, nx, curDir, origDir, fixCount, real);
-      }else if(type == R){
-        // 方向を変化させて結果元の方角と逆を向いてしまった場合
-        if(turnLeft(curDir) == (origDir+2)%4){
-          //fprintf(stderr,"y = %d, x = %d, change R -> L\n", ny, nx)
-
-          // セルが変更可能であれば修正する
-          if(canChangedCell(ny,nx)){
-            if(g_visitedCount[ly][lx] == 0){
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = L;
-              walk(ny, nx, turnRight(curDir), origDir, fixCount+1, real);
-            }else if(g_visitedCount[sy][sx] == 0){
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = S;
-              walk(ny, nx, curDir, origDir, fixCount+1, real);
-            }else{
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = L;
-              walk(ny, nx, turnRight(curDir), origDir, fixCount+1, real);
-            }
-          }
-        }else{
-          walk(ny, nx, turnLeft(curDir), origDir, fixCount, real);
-        }
-      }else if(type == U){
-        //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
-
-        if(canChangedCell(ny,nx)){
-          g_changedOnePath[ny][nx] = 1;
-          g_tempMaze[ny][nx] = S;
-          walk(ny, nx, curDir, origDir, fixCount+1, real);
-        }
-      }else if(type == L){
-        if(turnRight(curDir) == (origDir+2)%4){
-          //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
-
-          if(canChangedCell(ny,nx)){
-            if(g_visitedCount[ry][rx] == 0){
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = R;
-              walk(ny, nx, turnLeft(curDir), origDir, fixCount+1, real);
-            }else if(g_visitedCount[sy][sx] == 0){
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = S;
-              walk(ny, nx, curDir, origDir, fixCount+1, real);
-            }else{
-              g_changedOnePath[ny][nx] = 1;
-              g_tempMaze[ny][nx] = R;
-              walk(ny, nx, turnLeft(curDir), origDir, fixCount+1, real);
-            }
-          }
-        }else{
-          walk(ny, nx, turnRight(curDir), origDir, fixCount, real);
         }
       }else if(type == E){
         for(int i = 0; i < 4; i++){
@@ -903,14 +731,14 @@ class MazeFixing{
 
       int nvis = 0;
 
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
+      for(int y = 0; y < g_height; ++y){
+        for(int x = 0; x < g_width; ++x){
           if(inside(y, x) && g_visitedOverall[y][x]){
-            nvis++;
-            e.pathLen += 1;
+            ++nvis;
+            ++e.pathLen;
           }
           if(g_maze[y][x] != g_mazeOrigin[y][x]){
-            e.fixCount += 1;
+            ++e.fixCount;
           }
         }
       }
