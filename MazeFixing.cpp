@@ -136,7 +136,6 @@ typedef struct EXPLORER {
   int x;
   int pathLen;
   int curDir;
-  int curDir2;
 
   EXPLORER(int id, int y, int x, int curDir){
     this->id = id;
@@ -164,6 +163,11 @@ typedef struct EVAL{
     return pathLen;
   }
 } eval;
+
+typedef struct CellData{
+  int tCnt[6];
+
+} cellData;
 
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
@@ -279,48 +283,6 @@ class MazeFixing{
       }
     }
 
-    /*
-     * 盤面の状態を整備
-     */
-    void mazeClean(){
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
-          if(g_maze[y][x] != W && g_maze[y][x] != S && !g_notChangedPath[y][x]){
-            int wcnt = 0;
-            int lcnt = 0;
-            int rcnt = 0;
-
-            for(int i = 0; i < 4; i++){
-              int ny = y + DY[i];
-              int nx = x + DX[i];
-
-              if(g_maze[ny][nx] == W){
-                wcnt += 1;
-              }
-              if(g_maze[ny][nx] == R){
-                rcnt += 1;
-              }
-              if(g_maze[ny][nx] == L){
-                lcnt += 1;
-              }
-            }
-
-            if(rcnt >= 3 && g_maze[y][x] == R){
-              fprintf(stderr,"y = %d, x = %d, change L\n", y, x);
-              g_maze[y][x] = L;
-              g_notChangedPath[y][x] = 1;
-              g_F -= 1;
-            }else if(lcnt >= 3 && g_maze[y][x] == L){
-              fprintf(stderr,"y = %d, x = %d, change R\n", y, x);
-              g_maze[y][x] = R;
-              g_notChangedPath[y][x] = 1;
-              g_F -= 1;
-            }
-          }
-        }
-      }
-    }
-
     inline void resetMazeData(){
       // 探索済みの経路
       memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
@@ -345,7 +307,6 @@ class MazeFixing{
     vector<string> improve(vector<string> maze, int F){
       init(maze, F);
 
-      //mazeClean();
       //showMaze();
 
       fprintf(stderr,"R count = %d\n", g_RCount);
@@ -354,13 +315,15 @@ class MazeFixing{
       fprintf(stderr,"S count = %d\n", g_SCount);
 
       const ll startTime = getTime();
+      ll endTime = startTime + timeLimit;
+      ll currentTime = getTime();
 
-      while(g_F > 0){
+      while(g_F > 0 && currentTime < endTime){
         double maxValue = 0.0;
         bool update = false;
         int bestId = -1;
 
-        calcScore();
+        beforeProc();
 
         for(int id = 0; id < g_ID; id++){
           if(g_bestIdList[id]) continue;
@@ -395,6 +358,7 @@ class MazeFixing{
           fprintf(stderr,"remain f count = %d\n", g_F);
         }
         g_bestIdList[bestId] = true;
+        currentTime = getTime();
       }
 
       // ---------------------- sa -----------------------
@@ -403,9 +367,8 @@ class MazeFixing{
       double k = 0.1;
       double alpha = 0.999;
 
-      ll endTime = startTime + timeLimit;
       ll middleTime = startTime + middleLimit;
-      ll currentTime = getTime();
+      currentTime = getTime();
       int tryCount = 0;
 
       resetMazeData();
@@ -442,6 +405,10 @@ class MazeFixing{
         if(bestScore < score && e.fixCount <= g_FO){
           bestScore = score;
           saveMaze();
+        }else{
+          restoreCell(c.y, c.x);
+          restoreCell(c2.y, c2.x);
+          //restore();
         }
 
         /*
@@ -456,7 +423,6 @@ class MazeFixing{
         rollback();
         */
 
-        restore();
         T *= alpha;
 
         if(tryCount % span == 0){
@@ -488,14 +454,25 @@ class MazeFixing{
     }
 
     inline void changeCell(int y, int x){
-      int cList[3] = {R, S, L};
+      int cList[3] = {S, R, L};
+      g_tempMaze[y][x] = g_maze[y][x];
 
-      if(g_maze[y][x] == g_mazeOrigin[y][x]){
+      cellData cd = getCellData(y, x);
+
+      if(cd.tCnt[R] == 4){
+        g_maze[y][x] = L;
+      }else if(cd.tCnt[L] == 4){
+        g_maze[y][x] = R;
+      }else if(g_maze[y][x] == g_mazeOrigin[y][x]){
         int type = cList[xor128()%3];
         g_maze[y][x] = type;
       }else{
         g_maze[y][x] = g_mazeOrigin[y][x];
       }
+    }
+
+    inline void restoreCell(int y, int x){
+      g_maze[y][x] = g_bestMaze[y][x];
     }
 
     inline bool inside(int y, int x){
@@ -532,7 +509,7 @@ class MazeFixing{
       //fprintf(stderr,"id = %d, fixCount = %d, pathLen = %d\n", id, g_fixCount, g_pathLen);
 
       if(g_fixCount == 0 || g_fixCount > g_F){
-        return -1.0;
+        return -10000.0;
       }else if(!g_success){
         return g_fixCount;
       }else{
@@ -579,7 +556,9 @@ class MazeFixing{
                 if(g_maze[dy][dx] != U){
                   g_fixCount += 1;
                 }else{
-                  g_changeValue += 1;
+                  if(g_tempMaze[dy][dx] == S){
+                    g_changeValue += 1;
+                  }
                   g_fixCount += 1;
                 }
 
@@ -680,7 +659,7 @@ class MazeFixing{
     }
 
     inline int u_turn(int curDir){
-      return (curDir+2)%4;
+      return g_nextDirect[curDir][2];
     }
 
     eval calcScore(){
@@ -715,6 +694,33 @@ class MazeFixing{
       return e;
     }
 
+    void beforeProc(){
+      memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
+      memset(g_visitedCount, 0, sizeof(g_visitedCount));
+      ++g_turn;
+
+      for(int id = 0; id < g_ID; id++){
+        EXPLORER *exp = getExplorer(id);
+
+        search(exp->y, exp->x, exp->curDir);
+        exp->pathLen = g_currentNvis - g_beforeNvis;
+        g_beforeNvis = g_currentNvis;
+      }
+    }
+
+    cellData getCellData(int y, int x){
+      cellData cd;
+
+      for(int i = 0; i < 4; i++){
+        int ny = y + DY[i];
+        int nx = x + DX[i];
+
+        cd.tCnt[g_maze[ny][nx]] += 1;
+      }
+
+      return cd;
+    }
+
     void search(int curY, int curX, int curDir){
       int ny = curY + DY[curDir];
       int nx = curX + DX[curDir];
@@ -743,11 +749,11 @@ class MazeFixing{
       }else if(type == S){
         search(ny, nx, curDir);
       }else if(type == R){
-        search(ny, nx, (curDir+1)%4);
+        search(ny, nx, g_nextDirect[curDir][1]);
       }else if(type == U){
-        search(ny, nx, (curDir+2)%4);
+        search(ny, nx, g_nextDirect[curDir][2]);
       }else if(type == L){
-        search(ny, nx, (curDir+3)%4);
+        search(ny, nx, g_nextDirect[curDir][3]);
       }else if(type == E){
         for(int i = 0; i < 4; i++){
           search(ny, nx, i);
