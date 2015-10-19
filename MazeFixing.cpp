@@ -646,7 +646,7 @@ class MazeFixing{
 
               // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
               if(!g_visitedOverall[dz]){
-                if(vCnt < 1){
+                if(vCnt == 0){
                   g_pathLen += 1;
                   g_vPathLen -= 1;
                 }
