@@ -633,7 +633,7 @@ class MazeFixing{
                   g_fixCount += 1;
                 }
 
-                if(vCnt < 2){
+                if(vCnt <= 2){
                   g_changeValue += 1.0;
                 }
                 g_changedCheck[dz] = g_turn;
