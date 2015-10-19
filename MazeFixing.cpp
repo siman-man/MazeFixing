@@ -28,7 +28,7 @@ int g_nextDirect[4][5] = {
   {-1, 0, 1, 2, 3}
 };
 
-ll timeLimit = 8000;
+ll timeLimit = 9000;
 ll middleLimit = 5000;
 
 ll getTime() {
@@ -47,6 +47,7 @@ const int E = 5;
 
 bool g_debug = false;
 bool g_real;
+bool g_faster;
 
 const int DY[4] = {-1, 0, 1, 0};
 const int DX[4] = { 0, 1, 0,-1};
@@ -274,7 +275,7 @@ class MazeFixing{
     }
 
     bool isCentral(int y, int x){
-      double span = 0.35;
+      double span = 0.3;
       double dy = g_height * span;
       double dx = g_width * span;
 
@@ -355,7 +356,9 @@ class MazeFixing{
 
       const ll startTime = getTime();
       ll endTime = startTime + timeLimit;
+      ll middleTime = startTime + middleLimit;
       ll currentTime = getTime();
+      g_faster = false;
 
       while(g_F > 0 && currentTime < endTime){
         double maxValue = 0.0;
@@ -390,7 +393,7 @@ class MazeFixing{
 
         g_real = true;
         ++g_turn;
-        walk(exp->y, exp->x, exp->curDir, exp->curDir);
+        walk(exp->y, exp->x, exp->curDir, exp->curDir, 0);
 
         if(g_debug){
           //fprintf(stderr,"bestId = %d\n", bestId);
@@ -398,6 +401,10 @@ class MazeFixing{
         }
         g_bestIdList[bestId] = true;
         currentTime = getTime();
+
+        if(currentTime > middleTime){
+          g_faster = true;
+        }
       }
 
       // ---------------------- sa -----------------------
@@ -406,7 +413,6 @@ class MazeFixing{
       double k = 0.1;
       double alpha = 0.999;
 
-      ll middleTime = startTime + middleLimit;
       currentTime = getTime();
       int tryCount = 0;
 
@@ -418,7 +424,7 @@ class MazeFixing{
       saveMaze();
       keepMaze();
 
-      int span = (currentTime < middleTime && g_N < 4500)? 200 : 10;
+      int span = (currentTime < middleTime)? 100 : 30;
       fprintf(stderr,"span = %d, currentTime = %lld\n", span, currentTime-startTime);
 
       if(!g_debug && currentTime < middleTime){
@@ -426,7 +432,7 @@ class MazeFixing{
         endTime = startTime + timeLimit;
       }
 
-      while(currentTime < endTime){
+      while(currentTime < endTime && !g_faster){
         tryCount += 1;
 
         coord c = g_cellCoordList[xor128()%g_cellCount];
@@ -494,6 +500,13 @@ class MazeFixing{
       return !(g_visitedOverall[z] || g_notChangedPath[z]);
     }
 
+    void swapCell(coord &c1, coord &c2){
+      int cz = getZ(c1.y, c1.x);
+      int cz2 = getZ(c2.y, c2.x);
+      int temp = g_maze[cz];
+      g_maze[cz] = g_maze[cz2];
+    }
+
     inline void changeCell(int y, int x){
       int cList[3] = {S, R, L};
       int z = getZ(y,x);
@@ -547,7 +560,7 @@ class MazeFixing{
 
       resetMazeData();
       g_real = false;
-      walk(y, x, curDir, origDir);
+      walk(y, x, curDir, origDir, 0);
 
       double rate = 0.0;
 
@@ -557,12 +570,14 @@ class MazeFixing{
         return -10000.0;
       }else if(!g_success){
         return g_fixCount;
+      }else if(g_faster){
+        return g_pathLen;
       }else{
         return (g_pathLen + g_changeValue) / (double)(g_fixCount);
       }
     }
 
-    void walk(int y, int x, int curDir, int origDir){
+    void walk(int y, int x, int curDir, int origDir, int turnCount = 0){
       int ny = y + DY[curDir];
       int nx = x + DX[curDir];
       int nz = getZ(ny,nx);
@@ -646,63 +661,54 @@ class MazeFixing{
           }
         }
       }else if(type == S){
-        walk(ny, nx, curDir, origDir);
+        walk(ny, nx, curDir, origDir, turnCount);
       }else if(type == R){
         // 方向を変化させて結果元の方角と逆を向いてしまった場合
-        if(turnRight(curDir) == g_nextDirect[origDir][2]){
+        if(turnRight(curDir) == g_nextDirect[origDir][2] && canChangedCell(ny,nx)){
 
-          // セルが変更可能であれば修正する
-          if(canChangedCell(ny,nx)){
-            if(g_visitedCount[lz] == 0){
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = L;
-              walk(ny, nx, turnLeft(curDir), origDir);
-            }else if(g_visitedCount[sz] == 0){
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = S;
-              walk(ny, nx, curDir, origDir);
-            }else{
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = L;
-              walk(ny, nx, turnLeft(curDir), origDir);
-            }
+          g_changedOnePath[nz] = g_turn;
+
+          if(g_visitedCount[lz] == 0){
+            g_tempMaze[nz] = L;
+            walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
+          }else if(g_visitedCount[sz] == 0){
+            g_tempMaze[nz] = S;
+            walk(ny, nx, curDir, origDir, turnCount);
+          }else{
+            g_tempMaze[nz] = L;
+            walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
           }
         }else{
-          walk(ny, nx, turnRight(curDir), origDir);
+          walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
         }
-      }else if(type == U){
+      }else if(type == U && canChangedCell(ny, nx)){
         //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
 
-        if(canChangedCell(ny,nx)){
-          g_changedOnePath[nz] = g_turn;
-          g_tempMaze[nz] = S;
-          walk(ny, nx, curDir, origDir);
-        }
+        g_changedOnePath[nz] = g_turn;
+        g_tempMaze[nz] = S;
+        walk(ny, nx, curDir, origDir, turnCount);
       }else if(type == L){
-        if(turnLeft(curDir) == g_nextDirect[origDir][2]){
+        if(turnLeft(curDir) == g_nextDirect[origDir][2] && canChangedCell(ny,nx)){
           //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
 
-          if(canChangedCell(ny,nx)){
-            if(g_visitedCount[rz] == 0){
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = R;
-              walk(ny, nx, turnRight(curDir), origDir);
-            }else if(g_visitedCount[sz] == 0){
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = S;
-              walk(ny, nx, curDir, origDir);
-            }else{
-              g_changedOnePath[nz] = g_turn;
-              g_tempMaze[nz] = R;
-              walk(ny, nx, turnRight(curDir), origDir);
-            }
+          g_changedOnePath[nz] = g_turn;
+
+          if(g_visitedCount[rz] == 0){
+            g_tempMaze[nz] = R;
+            walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
+          }else if(g_visitedCount[sz] == 0){
+            g_tempMaze[nz] = S;
+            walk(ny, nx, curDir, origDir, turnCount);
+          }else{
+            g_tempMaze[nz] = R;
+            walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
           }
         }else{
-          walk(ny, nx, turnLeft(curDir), origDir);
+          walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
         }
-      }else{
+      }else if(type == E){
         for(int i = 0; i < 4; i++){
-          walk(ny, nx, (curDir+i)%4, (curDir+i)%4);
+          walk(ny, nx, (curDir+i)%4, (curDir+i)%4, turnCount+1);
         }
       }
 
