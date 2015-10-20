@@ -80,12 +80,11 @@ int g_width;
 // 迷路の縦幅
 int g_height;
 
-int g_fixCount;
+double g_fixCount;
 int g_pathLen;
 int g_vPathLen;
 double g_changeValue;
 ll g_turn;
-bool g_success;
 map<int, bool> g_bestIdList;
 
 int g_maze[MAX_HEIGHT*MAX_WIDTH];
@@ -105,6 +104,9 @@ int g_mazeDirection[MAX_HEIGHT*MAX_WIDTH];
 ll g_visitedOverall[MAX_HEIGHT*MAX_WIDTH];
 
 int g_visitedCount[MAX_HEIGHT*MAX_WIDTH];
+int g_stoppedCount[MAX_HEIGHT*MAX_WIDTH];
+
+double g_effectMap[MAX_HEIGHT*MAX_WIDTH];
 
 ll g_changedOnePath[MAX_HEIGHT*MAX_WIDTH];
 ll g_changedCheck[MAX_HEIGHT*MAX_WIDTH];
@@ -203,10 +205,9 @@ class MazeFixing{
       memset(g_maze, W, sizeof(g_maze));
       memset(g_tempMaze, W, sizeof(g_tempMaze));
       memset(g_notChangedPath, 0, sizeof(g_notChangedPath));
+      memset(g_visitedOverall, -1, sizeof(g_visitedOverall));
       memset(g_visitedOnePath, -1, sizeof(g_visitedOnePath));
-      // 今回の探索で変更したセルの確認
       memset(g_changedCheck, -1, sizeof(g_changedCheck));
-      // 今回の探索で変更したセルを記録する
       memset(g_changedOnePath, -1, sizeof(g_changedOnePath));
 
       for(int y = 0; y < g_height; y++){
@@ -237,11 +238,6 @@ class MazeFixing{
           if(type != '.'){
             g_N++;
 
-            if(type != 'S' && type != 'E'){
-              coord c(y,x);
-              g_cellCoordList.push_back(c);
-              g_cellCount += 1;
-            }
           }
         }
       }
@@ -249,6 +245,7 @@ class MazeFixing{
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           int z = getZ(y,x);
+          g_effectMap[z] = 1.0;
 
           if(g_maze[z] == W){
             for(int i = 0; i < 4; i++){
@@ -276,8 +273,23 @@ class MazeFixing{
       return exp;
     }
 
+    void initCoordList(){
+      for(int y = 0; y < g_height; y++){
+        for(int x = 0; x < g_width; x++){
+          int z = getZ(y,x);
+          int type = g_mazeOrigin[z];
+
+          if(type != W && type != S && type != E){
+            coord c(y,x);
+            g_cellCoordList.push_back(c);
+            g_cellCount += 1;
+          }
+        }
+      }
+    }
+
     bool isCentral(int y, int x){
-      double span = 0.3;
+      double span = 0.33;
       double dy = g_height * span;
       double dx = g_width * span;
 
@@ -288,6 +300,7 @@ class MazeFixing{
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           int z = getZ(y,x);
+
           if(g_F > 0 && isCentral(y,x) && g_maze[z] == U){
             g_F--;
             g_maze[z] = S;
@@ -323,11 +336,6 @@ class MazeFixing{
       }
     }
 
-    inline void resetMazeData(){
-      // 探索済みの経路
-      memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
-    }
-
     inline void saveMaze(){
       memcpy(g_bestMaze, g_maze, sizeof(g_maze));
     }
@@ -348,9 +356,7 @@ class MazeFixing{
       init(maze, F);
 
       //showMaze();
-      if((g_F / (double)g_N) > 0.20){
-        //mazeClean();
-      }
+      //mazeClean();
 
       if(g_debug){
         fprintf(stderr,"Before: R: %d, L: %d, S: %d, U: %d, E: %d\n", g_RCount, g_LCount, g_SCount, g_UCount, g_ECount);
@@ -393,8 +399,6 @@ class MazeFixing{
 
         EXPLORER *exp = getExplorer(bestId);
 
-        resetMazeData();
-
         g_real = true;
         ++g_turn;
         walk(exp->y, exp->x, exp->curDir, exp->curDir, 0);
@@ -422,15 +426,15 @@ class MazeFixing{
 
       currentTime = getTime();
 
-      resetMazeData();
       eval e = calcScore();
       double bestScore = e.score();
       double goodScore = e.score();
 
       saveMaze();
       keepMaze();
+      initCoordList();
 
-      int span = (currentTime < middleTime)? 300 : 30;
+      int span = (currentTime < middleTime)? 100 : 30;
       fprintf(stderr,"span = %d, currentTime = %lld\n", span, currentTime-startTime);
 
       while(currentTime < endTime && !g_faster){
@@ -442,7 +446,6 @@ class MazeFixing{
         changeCell(c.y, c.x);
         changeCell(c2.y, c2.x);
 
-        resetMazeData();
         eval e = calcScore();
         double score = e.score();
 
@@ -495,10 +498,9 @@ class MazeFixing{
       return g_query;
     }
 
-    // 経路として確定している部分は変更が出来ない
     inline bool canChangedCell(int y, int x){
       int z = getZ(y,x);
-      return !(g_visitedOverall[z] || g_notChangedPath[z]);
+      return !(g_notChangedPath[z] || g_visitedOverall[z] == g_turn);
     }
 
     void swapCell(coord &c1, coord &c2){
@@ -506,14 +508,13 @@ class MazeFixing{
       int cz2 = getZ(c2.y, c2.x);
       int temp = g_maze[cz];
       g_maze[cz] = g_maze[cz2];
+      g_maze[cz2] = temp;
     }
 
     inline void changeCell(int y, int x){
       int cList[3] = {S, R, L};
       int z = getZ(y,x);
       g_tempMaze[z] = g_maze[z];
-
-      cellData cd = getCellData(y, x);
 
       if(g_maze[z] == g_mazeOrigin[z]){
         int type = cList[xor128()%3];
@@ -552,14 +553,12 @@ class MazeFixing{
     }
 
     double calcWalkValue(int id, int y, int x, int curDir, int origDir){
-      g_fixCount = 0;
+      g_fixCount = 0.0;
       g_pathLen = 0;
       g_vPathLen = 0;
       g_changeValue = 0.0;
-      g_success = false;
       ++g_turn;
 
-      resetMazeData();
       g_real = false;
       walk(y, x, curDir, origDir, 0);
 
@@ -569,8 +568,6 @@ class MazeFixing{
 
       if(g_fixCount <= g_F * rate || g_fixCount > g_F){
         return -10000.0;
-      }else if(!g_success){
-        return g_fixCount;
       }else if(g_faster){
         return g_pathLen;
       }else{
@@ -578,7 +575,7 @@ class MazeFixing{
       }
     }
 
-    void walk(int curY, int curX, int curDir, int origDir, int turnCount = 0){
+    void walk(int curY, int curX, int curDir, int origDir, int fixCount = 0){
       int ny = curY + DY[curDir];
       int nx = curX + DX[curDir];
       int nz = getZ(ny,nx);
@@ -604,7 +601,6 @@ class MazeFixing{
        * 今回の探索で既に書き換えが発生していた場合はそれに置き換える
        */
       int type = (g_changedCheck[nz] == g_turn)? g_tempMaze[nz] : g_maze[nz];
-      cellData cell = getCellData(ny,nx);
 
       g_visitedOnePath[nz] = g_turn;
       g_mazeDirection[nz] = curDir;
@@ -616,8 +612,6 @@ class MazeFixing{
       //fprintf(stderr,"y = %d, x = %d, type = %c\n", ny, nx, g_cellType[type]);
 
       if(type == W){
-        // 経路作成に成功
-        g_success = true;
         int curZ = getZ(curY,curX);
 
         while(g_maze[curZ] != W){
@@ -625,17 +619,20 @@ class MazeFixing{
 
           // 今回生成した経路で変更が確定していない部分があれば追加する
           if(g_changedOnePath[curZ] == g_turn && g_changedCheck[curZ] != g_turn){
+            cellData cell = getCellData(curY,curX);
+
             if(g_maze[curZ] != U){
               g_fixCount += 1;
             // 元の変化がUの場合
             }else{
-              g_changeValue += 1.0;
               g_fixCount += 1;
+              g_changeValue += 1.0;
             }
 
             if(vCnt <= 2){
               g_changeValue += 1.0;
             }
+
             g_changedCheck[curZ] = g_turn;
 
             if(g_real){
@@ -645,12 +642,12 @@ class MazeFixing{
           }
 
           // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
-          if(!g_visitedOverall[curZ]){
+          if(g_visitedOverall[curZ] != g_turn){
             if(vCnt == 0){
               g_pathLen += 1;
               g_vPathLen -= 1;
             }
-            g_visitedOverall[curZ] = 1;	
+            g_visitedOverall[curZ] = g_turn;
           }
 
           // 探索経路上のセルは変更出来ない
@@ -664,7 +661,7 @@ class MazeFixing{
           curZ = getZ(curY,curX);
         }
       }else if(type == S){
-        walk(ny, nx, curDir, origDir, turnCount);
+        walk(ny, nx, curDir, origDir, fixCount);
       }else if(type == R){
         // 方向を変化させて結果元の方角と逆を向いてしまった場合
         if(turnRight(curDir) == g_nextDirect[origDir][2] && canChangedCell(ny,nx)){
@@ -673,23 +670,23 @@ class MazeFixing{
 
           if(g_visitedCount[lz] == 0){
             g_tempMaze[nz] = L;
-            walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
+            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1);
           }else if(g_visitedCount[sz] == 0){
             g_tempMaze[nz] = S;
-            walk(ny, nx, curDir, origDir, turnCount);
+            walk(ny, nx, curDir, origDir, fixCount+1);
           }else{
             g_tempMaze[nz] = L;
-            walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
+            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1);
           }
         }else{
-          walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
+          walk(ny, nx, turnRight(curDir), origDir, fixCount);
         }
       }else if(type == U && canChangedCell(ny, nx)){
         //fprintf(stderr,"y = %d, x = %d, change U -> S\n", ny, nx);
 
         g_changedOnePath[nz] = g_turn;
         g_tempMaze[nz] = S;
-        walk(ny, nx, curDir, origDir, turnCount);
+        walk(ny, nx, curDir, origDir, fixCount+1);
       }else if(type == L){
         if(turnLeft(curDir) == g_nextDirect[origDir][2] && canChangedCell(ny,nx)){
           //fprintf(stderr,"y = %d, x = %d, change L -> R\n", ny, nx);
@@ -698,20 +695,20 @@ class MazeFixing{
 
           if(g_visitedCount[rz] == 0){
             g_tempMaze[nz] = R;
-            walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
+            walk(ny, nx, turnRight(curDir), origDir, fixCount+1);
           }else if(g_visitedCount[sz] == 0){
             g_tempMaze[nz] = S;
-            walk(ny, nx, curDir, origDir, turnCount);
+            walk(ny, nx, curDir, origDir, fixCount+1);
           }else{
             g_tempMaze[nz] = R;
-            walk(ny, nx, turnRight(curDir), origDir, turnCount+1);
+            walk(ny, nx, turnRight(curDir), origDir, fixCount+1);
           }
         }else{
-          walk(ny, nx, turnLeft(curDir), origDir, turnCount+1);
+          walk(ny, nx, turnLeft(curDir), origDir, fixCount);
         }
       }else if(type == E){
         for(int i = 0; i < 4; i++){
-          walk(ny, nx, (curDir+i)%4, (curDir+i)%4, turnCount+1);
+          walk(ny, nx, (curDir+i)%4, (curDir+i)%4, fixCount);
         }
       }
 
@@ -732,8 +729,8 @@ class MazeFixing{
 
     eval calcScore(){
       eval e;
-      memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
       memset(g_visitedCount, 0, sizeof(g_visitedCount));
+      memset(g_stoppedCount, 0, sizeof(g_stoppedCount));
       g_RCount = 0;
       g_LCount = 0;
       g_UCount = 0;
@@ -758,7 +755,7 @@ class MazeFixing{
         for(int x = 0; x < g_width; ++x){
           int z = getZ(y,x);
 
-          if(inside(y, x) && g_visitedOverall[z]){
+          if(inside(y, x) && g_visitedOverall[z] == g_turn){
             ++nvis;
             ++e.pathLen;
           }
@@ -784,11 +781,10 @@ class MazeFixing{
     }
 
     void beforeProc(){
-      memset(g_visitedOverall, 0, sizeof(g_visitedOverall));
       memset(g_visitedCount, 0, sizeof(g_visitedCount));
       ++g_turn;
 
-      for(int id = 0; id < g_ID; id++){
+      for(int id = 0; id < g_ID; ++id){
         EXPLORER *exp = getExplorer(id);
 
         search(exp->y, exp->x, exp->curDir);
@@ -808,7 +804,7 @@ class MazeFixing{
         int nx = x + DX[i];
         int nz = getZ(ny,nx);
 
-        cd.tCnt[g_maze[nz]] += 1;
+        cd.tCnt[g_maze[nz]] += g_notChangedPath[nz];
       }
 
       return cd;
@@ -820,6 +816,10 @@ class MazeFixing{
       int nz = getZ(ny,nx);
 
       if(g_visitedOnePath[nz] == g_turn){
+        int bz = getZ(curY, curX);
+        if(g_maze[bz] == U){
+          g_stoppedCount[bz] += 1;
+        }
         return;
       }
 
@@ -834,9 +834,9 @@ class MazeFixing{
         while(g_maze[curZ] != W){
           g_visitedCount[curZ] += 1;
 
-          if(!g_visitedOverall[curZ]){
+          if(g_visitedOverall[curZ] != g_turn){
             g_currentNvis += 1;
-            g_visitedOverall[curZ] = 1;
+            g_visitedOverall[curZ] = g_turn;
           }
 
           curDir = g_mazeDirection[curZ];
