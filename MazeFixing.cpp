@@ -81,6 +81,7 @@ int g_width;
 int g_height;
 
 double g_fixCount;
+double g_fixRate;
 int g_pathLen;
 int g_vPathLen;
 double g_changeValue;
@@ -94,6 +95,8 @@ int g_tempMaze[MAX_HEIGHT*MAX_WIDTH];
 int g_bestMaze[MAX_HEIGHT*MAX_WIDTH];
 int g_goodMaze[MAX_HEIGHT*MAX_WIDTH];
 int g_copyMaze[MAX_HEIGHT*MAX_WIDTH];
+
+int g_outSideDist[MAX_HEIGHT*MAX_WIDTH];
 
 // 探索中に訪れた部分にチェックを付ける
 ll g_visitedOnePath[MAX_HEIGHT*MAX_WIDTH];
@@ -239,8 +242,11 @@ class MazeFixing{
             g_N++;
 
           }
+          g_outSideDist[z] = 99;
         }
       }
+
+      g_fixRate = g_F / (double)g_N;
 
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
@@ -255,6 +261,7 @@ class MazeFixing{
               if(outside(ny, nx)){
                 EXPLORER exp = createExplorer(y,x,i);
                 g_explorerList.push_back(exp);
+                setOutSideDist(ny, nx);
               }
             }
           }
@@ -271,6 +278,28 @@ class MazeFixing{
       g_ID++;
 
       return exp;
+    }
+
+    void setOutSideDist(int y, int x){
+      queue<coord> que;
+      que.push(coord(y,x));
+      map<int, bool> checkList;
+
+      while(!que.empty()){
+        coord c = que.front(); que.pop();
+
+        int z = getZ(c.y, c.x);
+        if(checkList[z] || g_maze[z] == W || g_outSideDist[z] < c.dist) continue;
+        checkList[z] = true;
+        g_outSideDist[z] = c.dist;
+
+        for(int i = 0; i < 4; i++){
+          int ny = c.y + DY[i];
+          int nx = c.x + DX[i];
+
+          que.push(coord(ny,nx,c.dist+1));
+        }
+      }
     }
 
     void initCoordList(){
@@ -625,8 +654,8 @@ class MazeFixing{
               g_fixCount += 1;
             // 元の変化がUの場合
             }else{
-              g_fixCount += 1;
               g_changeValue += 1.0;
+              g_fixCount += 1;
             }
 
             if(vCnt <= 2){
@@ -866,7 +895,8 @@ class MazeFixing{
         for(int x = 0; x < g_width; x++){
           int z = getZ(y,x);
           int type = g_maze[z];
-          fprintf(stderr,"%c",g_cellType[type]);
+          fprintf(stderr,"%2d", g_outSideDist[z]);
+          //fprintf(stderr,"%c",g_cellType[type]);
         }
         fprintf(stderr,"\n");
       }
