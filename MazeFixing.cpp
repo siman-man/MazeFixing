@@ -99,6 +99,8 @@ int g_copyMaze[MAX_HEIGHT*MAX_WIDTH];
 // 探索中に訪れた部分にチェックを付ける
 int g_visitedOnePath[MAX_HEIGHT*MAX_WIDTH];
 
+int g_mazeDirection[MAX_HEIGHT*MAX_WIDTH];
+
 // 探索済みの箇所についてチェックをつける
 int g_visitedOverall[MAX_HEIGHT*MAX_WIDTH];
 
@@ -483,7 +485,7 @@ class MazeFixing{
 
       if(g_debug){
         eval e = calcScore();
-        fprintf(stderr,"Current = %d\n", e.pathLen);
+        fprintf(stderr,"Current = %f\n", e.pathLen / (double)g_N);
         fprintf(stderr,"final remain f count = %d\n", g_F);
         fprintf(stderr,"Result: R: %d, L: %d, S: %d, U: %d, E: %d\n", g_RCount, g_LCount, g_SCount, g_UCount, g_ECount);
       }
@@ -577,9 +579,9 @@ class MazeFixing{
       }
     }
 
-    void walk(int y, int x, int curDir, int origDir, int turnCount = 0){
-      int ny = y + DY[curDir];
-      int nx = x + DX[curDir];
+    void walk(int curY, int curX, int curDir, int origDir, int turnCount = 0){
+      int ny = curY + DY[curDir];
+      int nx = curX + DX[curDir];
       int nz = getZ(ny,nx);
 
       int sy = ny + DY[curDir];
@@ -606,6 +608,8 @@ class MazeFixing{
       cellData cell = getCellData(ny,nx);
 
       g_visitedOnePath[nz] = g_turn;
+      g_mazeDirection[nz] = curDir;
+
       if(g_visitedCount[nz] == 0){
         g_vPathLen += 1;
       }
@@ -615,50 +619,50 @@ class MazeFixing{
       if(type == W){
         // 経路作成に成功
         g_success = true;
+        int curZ = getZ(curY,curX);
 
-        for(int dy = 0; dy < g_height; dy++){
-          for(int dx = 0; dx < g_width; dx++){
-            int dz = getZ(dy,dx);
-            int vCnt = g_visitedCount[dz];
+        while(g_maze[curZ] != W){
+          int vCnt = g_visitedCount[curZ];
 
-            if(g_visitedOnePath[dz] == g_turn){
+          // 今回生成した経路で変更が確定していない部分があれば追加する
+          if(g_changedOnePath[curZ] == g_turn && g_changedCheck[curZ] != g_turn){
+            if(g_maze[curZ] != U){
+              g_fixCount += 1;
+            // 元の変化がUの場合
+            }else{
+              g_changeValue += 1.0;
+              g_fixCount += 1;
+            }
 
-              // 今回生成した経路で変更が確定していない部分があれば追加する
-              if(g_changedOnePath[dz] == g_turn && g_changedCheck[dz] != g_turn){
-                if(g_maze[dz] != U){
-                  g_fixCount += 1;
-                // 元の変化がUの場合
-                }else{
-                  g_changeValue += 1.0;
-                  g_fixCount += 1;
-                }
+            if(vCnt <= 2){
+              g_changeValue += 1.0;
+            }
+            g_changedCheck[curZ] = g_turn;
 
-                if(vCnt <= 2){
-                  g_changeValue += 1.0;
-                }
-                g_changedCheck[dz] = g_turn;
-
-                if(g_real){
-                  g_maze[dz] = g_tempMaze[dz];
-                  g_F -= 1;
-                }
-              }
-
-              // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
-              if(!g_visitedOverall[dz]){
-                if(vCnt == 0){
-                  g_pathLen += 1;
-                  g_vPathLen -= 1;
-                }
-                g_visitedOverall[dz] = 1;	
-              }
-
-              // 探索経路上のセルは変更出来ない
-              if(g_real && !g_notChangedPath[dz]){
-                g_notChangedPath[dz] = 1;
-              }
+            if(g_real){
+              g_maze[curZ] = g_tempMaze[curZ];
+              g_F -= 1;
             }
           }
+
+          // 今回生成した経路でまだ未チェックの部分がある場合は経路長を伸ばす
+          if(!g_visitedOverall[curZ]){
+            if(vCnt == 0){
+              g_pathLen += 1;
+              g_vPathLen -= 1;
+            }
+            g_visitedOverall[curZ] = 1;	
+          }
+
+          // 探索経路上のセルは変更出来ない
+          if(g_real && !g_notChangedPath[curZ]){
+            g_notChangedPath[curZ] = 1;
+          }
+
+          curDir = g_mazeDirection[curZ];
+          curY = curY + DY[(curDir+2)%4];
+          curX = curX + DX[(curDir+2)%4];
+          curZ = getZ(curY,curX);
         }
       }else if(type == S){
         walk(ny, nx, curDir, origDir, turnCount);
@@ -819,23 +823,27 @@ class MazeFixing{
       }
 
       g_visitedOnePath[nz] = g_turn;
+      g_mazeDirection[nz] = curDir;
 
       int type = g_maze[nz];
 
       if(type == W){
-        for(int y = 0; y < g_height; y++){
-          for(int x = 0; x < g_width; x++){
-            int z = getZ(y,x);
+        int curZ = getZ(curY,curX);
 
-            if(g_visitedOnePath[z] == g_turn){
-              g_visitedCount[z] += 1;
+        while(g_maze[curZ] != W){
+          if(g_visitedOnePath[curZ] == g_turn){
+            g_visitedCount[curZ] += 1;
 
-              if(!g_visitedOverall[z]){
-                g_currentNvis += 1;
-                g_visitedOverall[z] = 1;
-              }
+            if(!g_visitedOverall[curZ]){
+              g_currentNvis += 1;
+              g_visitedOverall[curZ] = 1;
             }
           }
+
+          curDir = g_mazeDirection[curZ];
+          curY = curY + DY[(curDir+2)%4];
+          curX = curX + DX[(curDir+2)%4];
+          curZ = getZ(curY,curX);
         }
       }else if(type == S){
         search(ny, nx, curDir);
