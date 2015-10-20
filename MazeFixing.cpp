@@ -84,7 +84,7 @@ int g_fixCount;
 int g_pathLen;
 int g_vPathLen;
 double g_changeValue;
-int g_turn;
+ll g_turn;
 bool g_success;
 map<int, bool> g_bestIdList;
 
@@ -97,18 +97,18 @@ int g_goodMaze[MAX_HEIGHT*MAX_WIDTH];
 int g_copyMaze[MAX_HEIGHT*MAX_WIDTH];
 
 // 探索中に訪れた部分にチェックを付ける
-int g_visitedOnePath[MAX_HEIGHT*MAX_WIDTH];
+ll g_visitedOnePath[MAX_HEIGHT*MAX_WIDTH];
 
 int g_mazeDirection[MAX_HEIGHT*MAX_WIDTH];
 
 // 探索済みの箇所についてチェックをつける
-int g_visitedOverall[MAX_HEIGHT*MAX_WIDTH];
+ll g_visitedOverall[MAX_HEIGHT*MAX_WIDTH];
 
 int g_visitedCount[MAX_HEIGHT*MAX_WIDTH];
 
-int g_changedOnePath[MAX_HEIGHT*MAX_WIDTH];
-int g_changedCheck[MAX_HEIGHT*MAX_WIDTH];
-int g_notChangedPath[MAX_HEIGHT*MAX_WIDTH];
+ll g_changedOnePath[MAX_HEIGHT*MAX_WIDTH];
+ll g_changedCheck[MAX_HEIGHT*MAX_WIDTH];
+ll g_notChangedPath[MAX_HEIGHT*MAX_WIDTH];
 
 unsigned long long xor128(){
   static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
@@ -361,8 +361,10 @@ class MazeFixing{
       ll middleTime = startTime + middleLimit;
       ll currentTime = getTime();
       g_faster = false;
+      int tryCount = 0;
 
       while(g_F > 0 && currentTime < endTime){
+        tryCount += 1;
         double maxValue = 0.0;
         bool update = false;
         int bestId = -1;
@@ -402,7 +404,10 @@ class MazeFixing{
           //fprintf(stderr,"remain f count = %d\n", g_F);
         }
         g_bestIdList[bestId] = true;
-        currentTime = getTime();
+
+        if(tryCount % 2 == 0){
+          currentTime = getTime();
+        }
 
         if(currentTime > middleTime){
           g_faster = true;
@@ -416,7 +421,6 @@ class MazeFixing{
       double alpha = 0.999;
 
       currentTime = getTime();
-      int tryCount = 0;
 
       resetMazeData();
       eval e = calcScore();
@@ -426,13 +430,8 @@ class MazeFixing{
       saveMaze();
       keepMaze();
 
-      int span = (currentTime < middleTime)? 100 : 30;
+      int span = (currentTime < middleTime)? 300 : 30;
       fprintf(stderr,"span = %d, currentTime = %lld\n", span, currentTime-startTime);
-
-      if(!g_debug && currentTime < middleTime){
-        timeLimit = 9000;
-        endTime = startTime + timeLimit;
-      }
 
       while(currentTime < endTime && !g_faster){
         tryCount += 1;
@@ -765,16 +764,18 @@ class MazeFixing{
           }
           e.fixCount += (g_maze[z] != g_mazeOrigin[z]);
 
-          if(g_maze[z] == S){
-            g_SCount += 1;
-          }else if(g_maze[z] == R){
-            g_RCount += 1;
-          }else if(g_maze[z] == L){
-            g_LCount += 1;
-          }else if(g_maze[z] == U){
-            g_UCount += 1;
-          }else if(g_maze[z] == E){
-            g_ECount += 1;
+          if(g_debug){
+            if(g_maze[z] == S){
+              g_SCount += 1;
+            }else if(g_maze[z] == R){
+              g_RCount += 1;
+            }else if(g_maze[z] == L){
+              g_LCount += 1;
+            }else if(g_maze[z] == U){
+              g_UCount += 1;
+            }else if(g_maze[z] == E){
+              g_ECount += 1;
+            }
           }
         }
       }
@@ -831,13 +832,11 @@ class MazeFixing{
         int curZ = getZ(curY,curX);
 
         while(g_maze[curZ] != W){
-          if(g_visitedOnePath[curZ] == g_turn){
-            g_visitedCount[curZ] += 1;
+          g_visitedCount[curZ] += 1;
 
-            if(!g_visitedOverall[curZ]){
-              g_currentNvis += 1;
-              g_visitedOverall[curZ] = 1;
-            }
+          if(!g_visitedOverall[curZ]){
+            g_currentNvis += 1;
+            g_visitedOverall[curZ] = 1;
           }
 
           curDir = g_mazeDirection[curZ];
