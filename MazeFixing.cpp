@@ -29,7 +29,7 @@ int g_nextDirect[4][5] = {
 };
 
 ll timeLimit = 9000;
-ll middleLimit = 5000;
+ll middleLimit = 4000;
 
 ll getTime() {
 	struct timeval tv;
@@ -183,7 +183,7 @@ typedef struct EVAL{
 	}
 
 	double score(){
-		return pathLen;
+		return 3.5 * pathLen + 1.3 * vPathLen - 1.2 * fixCount;
 	}
 } eval;
 
@@ -484,42 +484,54 @@ class MazeFixing{
 
 			eval e = calcScore();
 			double bestScore = e.score();
+      double goodScore = e.pathLen / (double)g_N;
 
 			saveMaze();
+      keepMaze();
 			initCoordList();
 
-			int span = (currentTime < middleTime)? 1000 : 30;
+			int span = (currentTime < middleTime)? 100 : 30;
 			fprintf(stderr,"span = %d, currentTime = %lld\n", span, currentTime-startTime);
 
 			while(currentTime < endTime && !g_faster){
 				int z = g_cellCoordList[xor128()%g_cellCount];
 				int z2 = g_cellCoordList[xor128()%g_cellCount];
+				//int z3 = g_cellCoordList[xor128()%g_cellCount];
 
 				tryCount += 1;
 
 				changeCell(z);
 				changeCell(z2);
+				//changeCell(z3);
 
 				eval e = calcScore();
 				double score = e.score();
+        double realScore = e.pathLen / (double)g_N;
 
 				//double rate = exp(-(goodScore-score) / (k*T));
 
 				if(bestScore < score && e.fixCount <= g_FO){
+          fprintf(stderr,"fixCount: (%d/%d), update score %f, (%d/%d)\n", e.fixCount, g_FO, realScore, e.pathLen, g_N);
 					bestScore = score;
 					saveMaze();
 				}else{
 					restoreCell(z);
 					restoreCell(z2);
+					//restoreCell(z3);
 					//restore();
 				}
+
+        if(goodScore < realScore && e.fixCount <= g_FO){
+          goodScore = realScore;
+          keepMaze();
+        }
 
 				if(tryCount % span == 0){
 					currentTime = getTime();
 				}
 			}
 
-			restore();
+      rollback();
 
 			// -------------------- sa end -----------------------
 
@@ -699,7 +711,7 @@ class MazeFixing{
 							g_changeValue += 1.0;
 						}
 						if(vCnt <= 2){
-							g_changeValue += 1.0;
+							g_changeValue += 0.7;
 						}
 						g_changedCheck[curZ] = g_turn;
 
@@ -726,7 +738,6 @@ class MazeFixing{
 						}
 						g_visitedOverall[curZ] = g_turn;
 					}
-
 
 					curDir = g_mazeDirection[curZ];
 					curY += DY[(curDir+2)%4];
@@ -815,6 +826,7 @@ class MazeFixing{
 
 		eval calcScore(){
 			eval e;
+			g_vPathLen = 0;
 			memset(g_visitedCount, 0, sizeof(g_visitedCount));
 			++g_turn;
 
@@ -834,6 +846,9 @@ class MazeFixing{
 					e.fixCount += (g_maze[z] != g_mazeOrigin[z]);
 				}
 			}
+
+      e.vPathLen = g_vPathLen - e.pathLen;
+      g_F = g_FO - e.fixCount;
 
 			return e;
 		}
@@ -873,6 +888,10 @@ class MazeFixing{
 
 			if(g_visitedOnePath[nz] == g_turn){
 				return;
+			}
+			if(g_visitedOnceall[nz] != g_turn){
+				g_visitedOnceall[nz] = g_turn;
+				g_vPathLen += 1;
 			}
 
 			g_visitedOnePath[nz] = g_turn;
