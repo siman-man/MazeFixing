@@ -29,7 +29,7 @@ int g_nextDirect[4][5] = {
 };
 
 ll timeLimit = 9000;
-ll middleLimit = 4000;
+ll middleLimit = 6000;
 
 ll getTime() {
   struct timeval tv;
@@ -49,11 +49,11 @@ bool g_debug = false;
 bool g_real;
 bool g_faster;
 
-const int DY[4] = {-1, 0, 1, 0};
-const int DX[4] = { 0, 1, 0,-1};
-
 const int MAX_WIDTH = 80;
 const int MAX_HEIGHT = 80;
+
+const int DY[4] = {-1, 0, 1, 0};
+const int DX[4] = { 0, 1, 0,-1};
 
 // 修正可能なセルの個数
 int g_F;
@@ -255,27 +255,6 @@ class MazeFixing{
       }
     }
 
-    bool isCentral(int y, int x){
-      double span = 0.33;
-      double dy = g_height * span;
-      double dx = g_width * span;
-
-      return (dy < y && y < (g_height-dy) && dx < x && x < (g_width-dx));
-    }
-
-    void mazeClean(){
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
-          int z = getZ(y,x);
-
-          if(g_F > 0 && isCentral(y,x) && g_maze[z] == U){
-            g_F--;
-            g_maze[z] = S;
-          }
-        }
-      }
-    }
-
     inline int getZ(int y, int x){
       return y * MAX_WIDTH + x;
     }
@@ -326,7 +305,6 @@ class MazeFixing{
       init(maze, F);
 
       //showMaze();
-      //mazeClean();
 
       const ll startTime = getTime();
       ll endTime = startTime + timeLimit;
@@ -335,7 +313,7 @@ class MazeFixing{
       g_faster = true;
       int tryCount = 0;
 
-      while(g_F > 0 && currentTime < endTime){
+      while(false && g_F > 0 && currentTime < endTime){
         tryCount += 1;
         double maxValue = -100.0;
         bool update = false;
@@ -407,7 +385,7 @@ class MazeFixing{
           double realScore = e.pathLen / (double)g_N;
 
           if(bestScore < score && e.fixCount <= g_FO){
-            fprintf(stderr,"fixCount: (%d/%d), update score %f, (%d/%d)\n", e.fixCount, g_FO, realScore, e.pathLen, g_N);
+            //fprintf(stderr,"fixCount: (%d/%d), update score %f, (%d/%d)\n", e.fixCount, g_FO, realScore, e.pathLen, g_N);
             bestScore = score;
             saveMaze();
           }else{
@@ -536,6 +514,9 @@ class MazeFixing{
       }
 
       int type = (g_changedCheck[nz] == g_turn)? g_tempMaze[nz] : g_maze[nz];
+      int rType = (g_notChangedPath[rz] > 0)? g_maze[rz] : W;
+      int lType = (g_notChangedPath[lz] > 0)? g_maze[lz] : W;
+      int sType = (g_notChangedPath[sz] > 0)? g_maze[sz] : W;
 
       if(g_visitedOnceall[nz] != g_turn){
         g_visitedOnceall[nz] = g_turn;
