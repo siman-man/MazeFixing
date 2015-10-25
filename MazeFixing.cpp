@@ -49,9 +49,6 @@ bool g_debug = false;
 bool g_real;
 bool g_faster;
 
-vector<int> g_path;
-vector<int> g_cellTypes;
-
 const int DY[4] = {-1, 0, 1, 0};
 const int DX[4] = { 0, 1, 0,-1};
 
@@ -144,29 +141,18 @@ typedef struct EXPLORER {
 typedef struct EVAL{
   int pathLen;
   int vPathLen;
-  int unreachedCellCount;
   int fixCount;
 
   EVAL(){
     this->pathLen = 0;
     this->fixCount = 0;
     this->vPathLen = 0;
-    this->unreachedCellCount = 0;
   }
 
   double score(){
     return 3.5 * pathLen + 1.3 * vPathLen - 1.2 * fixCount;
   }
 } eval;
-
-typedef struct CellData{
-  int tCnt[6];
-
-  CellData(){
-    memset(tCnt, 0, sizeof(tCnt));
-  }
-
-} cellData;
 
 vector<string> g_query;
 vector<EXPLORER> g_explorerList;
@@ -532,8 +518,6 @@ class MazeFixing{
 
     void commitWalk(explorer *exp){
       g_real = true;
-      g_path = vector<int>();
-      g_cellTypes = vector<int>();
       ++g_turn;
       walk(exp->y, exp->x, exp->curDir, exp->curDir, 0);
     }
@@ -617,9 +601,6 @@ class MazeFixing{
           }
 
           if(g_real && g_visitedOverall[curZ] != g_turn){
-            g_path.push_back(curZ);
-            g_cellTypes.push_back(g_maze[curZ]);
-
             g_notChangedPath[curZ] += 1;
           }
 
@@ -753,23 +734,6 @@ class MazeFixing{
 
         search(exp->y, exp->x, exp->curDir);
       }
-    }
-
-    cellData getCellData(int y, int x){
-      cellData cd;
-      int z = getZ(y,x);
-
-      if(g_maze[z] == W) return cd;
-
-      for(int i = 0; i < 4; i++){
-        int ny = y + DY[i];
-        int nx = x + DX[i];
-        int nz = getZ(ny,nx);
-
-        cd.tCnt[g_maze[nz]] += 1;
-      }
-
-      return cd;
     }
 
     void search(int curY, int curX, int curDir){
