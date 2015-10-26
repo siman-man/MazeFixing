@@ -335,8 +335,6 @@ class MazeFixing{
           break;
         }
       }
-
-      // ---------------------- sa -----------------------
       
       saveMaze();
       keepMaze();
@@ -402,8 +400,6 @@ class MazeFixing{
       }
 
       rollback();
-
-      // -------------------- sa end -----------------------
 
       fprintf(stderr,"tryCount = %d\n", tryCount);
 
@@ -742,7 +738,6 @@ class MazeFixing{
       }
     }
 };
-
 
 int main(){
   int h,f;
