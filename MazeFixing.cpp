@@ -46,7 +46,7 @@ const int S = 4;
 const int E = 5;
 
 bool g_debug = false;
-bool g_real;
+bool g_commit;
 bool g_faster;
 
 const int DY[4] = {-1, 0, 1, 0};
@@ -69,7 +69,6 @@ int g_height;
 double g_fixCount;
 int g_pathLen;
 int g_vPathLen;
-int g_vFixCount;
 double g_changeValue;
 ll g_turn;
 map<int, bool> g_bestIdList;
@@ -91,8 +90,6 @@ ll g_visitedOnceall[MAX_HEIGHT*MAX_WIDTH];
 
 int g_visitedCount[MAX_HEIGHT*MAX_WIDTH];
 
-double g_effectMap[MAX_HEIGHT*MAX_WIDTH];
-
 ll g_changedOnePath[MAX_HEIGHT*MAX_WIDTH];
 ll g_changedCheck[MAX_HEIGHT*MAX_WIDTH];
 ll g_notChangedPath[MAX_HEIGHT*MAX_WIDTH];
@@ -110,18 +107,6 @@ string int2string(int number){
   return ss.str();
 }
 
-typedef struct COORD {
-  int y;
-  int x;
-  int dist;
-
-  COORD(int y, int x, int dist = 0){
-    this->y = y;
-    this->x = x;
-    this->dist = dist;
-  }
-} coord;
-
 typedef struct EXPLORER {
   int id;
   int y;
@@ -138,6 +123,8 @@ typedef struct EXPLORER {
   }
 } explorer;
 
+double g_beta = 10.0;
+
 typedef struct EVAL{
   int pathLen;
   int vPathLen;
@@ -150,7 +137,7 @@ typedef struct EVAL{
   }
 
   double score(){
-    return 3.5 * pathLen + 1.3 * vPathLen - 1.2 * fixCount;
+    return 3.5 * pathLen + 1.3 * vPathLen - g_beta * fixCount;
   }
 } eval;
 
@@ -201,7 +188,6 @@ class MazeFixing{
 
           if(type != '.'){
             g_N++;
-
           }
         }
       }
@@ -209,7 +195,6 @@ class MazeFixing{
       for(int y = 0; y < g_height; y++){
         for(int x = 0; x < g_width; x++){
           int z = getZ(y,x);
-          g_effectMap[z] = 1.0;
 
           if(g_maze[z] == W){
             for(int i = 0; i < 4; i++){
@@ -246,27 +231,6 @@ class MazeFixing{
           if(type != W && type != S && type != E){
             g_cellCoordList.push_back(z);
             g_cellCount += 1;
-          }
-        }
-      }
-    }
-
-    bool isCentral(int y, int x){
-      double span = 0.33;
-      double dy = g_height * span;
-      double dx = g_width * span;
-
-      return (dy < y && y < (g_height-dy) && dx < x && x < (g_width-dx));
-    }
-
-    void mazeClean(){
-      for(int y = 0; y < g_height; y++){
-        for(int x = 0; x < g_width; x++){
-          int z = getZ(y,x);
-
-          if(g_F > 0 && isCentral(y,x) && g_maze[z] == U){
-            g_F--;
-            g_maze[z] = S;
           }
         }
       }
@@ -322,7 +286,6 @@ class MazeFixing{
       init(maze, F);
 
       //showMaze();
-      //mazeClean();
 
       const ll startTime = getTime();
       ll endTime = startTime + timeLimit;
@@ -378,6 +341,15 @@ class MazeFixing{
       saveMaze();
       keepMaze();
 
+      ll ct = currentTime-startTime;
+
+      if(g_F > g_FO * 0.01){
+        g_beta = (g_N/(double)g_FO);
+      }else{
+        g_beta = 2.0 * (g_N/(double)g_FO);
+      }
+      double alpha = 0.999;
+
       if(g_faster){
         currentTime = getTime();
 
@@ -386,41 +358,41 @@ class MazeFixing{
         double goodScore = e.pathLen / (double)g_N;
 
         initCoordList();
+        int span = 50;
 
-        int span = (currentTime < middleTime)? 50 : 30;
-        fprintf(stderr,"span = %d, currentTime = %lld\n", span, currentTime-startTime);
+        if(ct < 100){
+          endTime = startTime + 9500;
+          span = 250;
+        }
+
+        fprintf(stderr,"span = %d, currentTime = %lld\n", span, ct);
 
         while(currentTime < endTime){
           int z = g_cellCoordList[xor128()%g_cellCount];
           int z2 = g_cellCoordList[xor128()%g_cellCount];
-          //int z3 = g_cellCoordList[xor128()%g_cellCount];
 
           tryCount += 1;
 
           changeCell(z);
           changeCell(z2);
-          //changeCell(z3);
 
           eval e = calcScore();
           double score = e.score();
           double realScore = e.pathLen / (double)g_N;
 
-          //double rate = exp(-(goodScore-score) / (k*T));
-
-          if(bestScore < score && e.fixCount <= g_FO){
-            fprintf(stderr,"fixCount: (%d/%d), update score %f, (%d/%d)\n", e.fixCount, g_FO, realScore, e.pathLen, g_N);
-            bestScore = score;
-            saveMaze();
-          }else{
-            restoreCell(z);
-            restoreCell(z2);
-            //restoreCell(z3);
-            //restore();
-          }
-
           if(goodScore < realScore && e.fixCount <= g_FO){
             goodScore = realScore;
             keepMaze();
+          }
+
+          if(bestScore < score && e.fixCount <= g_FO){
+            //fprintf(stderr,"beta = %f, fixCount: (%d/%d), update score %f, (%d/%d)\n", g_beta, e.fixCount, g_FO, realScore, e.pathLen, g_N);
+            bestScore = score;
+            saveMaze();
+            g_beta = max(1.0, g_beta * alpha);
+          }else{
+            restoreCell(z);
+            restoreCell(z2);
           }
 
           if(tryCount % span == 0){
@@ -452,14 +424,6 @@ class MazeFixing{
       return !(g_notChangedPath[z] > 0 || g_visitedOverall[z] == g_turn);
     }
 
-    void swapCell(coord &c1, coord &c2){
-      int cz = getZ(c1.y, c1.x);
-      int cz2 = getZ(c2.y, c2.x);
-      int temp = g_maze[cz];
-      g_maze[cz] = g_maze[cz2];
-      g_maze[cz2] = temp;
-    }
-
     inline void changeCell(int z){
       int cList[3] = {S, R, L};
       g_tempMaze[z] = g_maze[z];
@@ -469,20 +433,6 @@ class MazeFixing{
         g_maze[z] = type;
       }else{
         g_maze[z] = g_mazeOrigin[z];
-      }
-    }
-
-    void restorePath(vector<int> &path){
-      int length = path.size();
-
-      for(int i = 0; i < length; i++){
-        int z = path[i];
-
-        if(g_maze[z] != g_mazeOrigin[z] && g_notChangedPath[z] == 1){
-          g_notChangedPath[z] = 0;
-          resetCell(z);
-          g_F++;
-        }
       }
     }
 
@@ -517,7 +467,7 @@ class MazeFixing{
     }
 
     void commitWalk(explorer *exp){
-      g_real = true;
+      g_commit = true;
       ++g_turn;
       walk(exp->y, exp->x, exp->curDir, exp->curDir, 0);
     }
@@ -526,11 +476,10 @@ class MazeFixing{
       g_fixCount = 0.0;
       g_pathLen = 0;
       g_vPathLen = 0;
-      g_vFixCount = 0;
       g_changeValue = 0.0;
       ++g_turn;
 
-      g_real = false;
+      g_commit = false;
       walk(y, x, curDir, origDir, 0);
 
       if(g_fixCount <= 0 || g_fixCount > g_F){
@@ -542,7 +491,7 @@ class MazeFixing{
       }
     }
 
-    void walk(int curY, int curX, int curDir, int origDir, int fixCount = 0, int pathLen = 0){
+    void walk(int curY, int curX, int curDir, int origDir, int fixCount = 0){
       int ny = curY + DY[curDir];
       int nx = curX + DX[curDir];
       int nz = getZ(ny,nx);
@@ -590,17 +539,13 @@ class MazeFixing{
             }
             g_changedCheck[curZ] = g_turn;
 
-            if(g_real){
+            if(g_commit){
               g_maze[curZ] = g_tempMaze[curZ];
               g_F -= 1;
             }
           }
 
-          if(g_changedOnePath[curZ] == g_turn){
-            g_vFixCount += 1;
-          }
-
-          if(g_real && g_visitedOverall[curZ] != g_turn){
+          if(g_commit && g_visitedOverall[curZ] != g_turn){
             g_notChangedPath[curZ] += 1;
           }
 
@@ -617,7 +562,7 @@ class MazeFixing{
           curZ = getZ(curY,curX);
         }
       }else if(type == S){
-        walk(ny, nx, curDir, origDir, fixCount, pathLen+1);
+        walk(ny, nx, curDir, origDir, fixCount);
       }else if(type == R){
         if(turnRight(curDir) == g_nextDirect[origDir][2] && canChangedCell(ny,nx)){
 
@@ -625,22 +570,22 @@ class MazeFixing{
 
           if(g_visitedCount[lz] == 0){
             g_tempMaze[nz] = L;
-            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1);
           }else if(g_visitedCount[sz] == 0){
             g_tempMaze[nz] = S;
-            walk(ny, nx, curDir, origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, curDir, origDir, fixCount+1);
           }else{
             g_tempMaze[nz] = L;
-            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, turnLeft(curDir), origDir, fixCount+1);
           }
         }else{
-          walk(ny, nx, turnRight(curDir), origDir, fixCount, pathLen+1);
+          walk(ny, nx, turnRight(curDir), origDir, fixCount);
         }
       }else if(type == U && canChangedCell(ny, nx)){
 
         g_changedOnePath[nz] = g_turn;
         g_tempMaze[nz] = S;
-        walk(ny, nx, curDir, origDir, fixCount+1, pathLen+1);
+        walk(ny, nx, curDir, origDir, fixCount+1);
       }else if(type == L){
         if(turnLeft(curDir) == g_nextDirect[origDir][2] && featureDir(ny,nx,curDir) != R && canChangedCell(ny,nx)){
 
@@ -648,20 +593,20 @@ class MazeFixing{
 
           if(g_visitedCount[rz] == 0){
             g_tempMaze[nz] = R;
-            walk(ny, nx, turnRight(curDir), origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, turnRight(curDir), origDir, fixCount+1);
           }else if(g_visitedCount[sz] == 0){
             g_tempMaze[nz] = S;
-            walk(ny, nx, curDir, origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, curDir, origDir, fixCount+1);
           }else{
             g_tempMaze[nz] = R;
-            walk(ny, nx, turnRight(curDir), origDir, fixCount+1, pathLen+1);
+            walk(ny, nx, turnRight(curDir), origDir, fixCount+1);
           }
         }else{
-          walk(ny, nx, turnLeft(curDir), origDir, fixCount, pathLen+1);
+          walk(ny, nx, turnLeft(curDir), origDir, fixCount);
         }
       }else if(type == E){
         for(int i = 0; i < 4; i++){
-          walk(ny, nx, (curDir+i)%4, (curDir+i)%4, fixCount, pathLen+1);
+          walk(ny, nx, (curDir+i)%4, (curDir+i)%4, fixCount);
         }
       }
 
